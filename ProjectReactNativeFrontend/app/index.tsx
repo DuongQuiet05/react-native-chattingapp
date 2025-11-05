@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
-import { Redirect } from 'expo-router';
+import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '@/contexts/auth-context';
 
@@ -8,8 +8,10 @@ const INTRO_SEEN_KEY = '@intro_seen';
 
 export default function IndexScreen() {
   const { status } = useAuth();
+  const router = useRouter();
   const [hasSeenIntro, setHasSeenIntro] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const hasRedirected = useRef(false);
 
   useEffect(() => {
     const checkIntroStatus = async () => {
@@ -27,38 +29,41 @@ export default function IndexScreen() {
     checkIntroStatus();
   }, []);
 
-  // Memoize redirect logic để tránh re-render không cần thiết
-  const redirectHref = useMemo(() => {
-    if (isLoading || hasSeenIntro === null) {
-      return null;
+  // Handle redirect logic
+  useEffect(() => {
+    // Don't redirect if still loading or already redirected
+    if (isLoading || hasSeenIntro === null || status === 'loading' || hasRedirected.current) {
+      return;
     }
 
+    let redirectHref: string | null = null;
+
+    // If hasn't seen intro, redirect to intro
     if (hasSeenIntro === false) {
-      return '/(auth)/intro-1';
+      redirectHref = '/(auth)/intro-1';
     }
-
-    if (hasSeenIntro === true) {
+    // If has seen intro
+    else if (hasSeenIntro === true) {
       if (status === 'authenticated') {
-        return '/(tabs)';
+        redirectHref = '/(tabs)/feed';
+      } else {
+        redirectHref = '/(auth)/login';
       }
-      return '/(auth)/login';
     }
 
-    return null;
-  }, [isLoading, hasSeenIntro, status]);
+    // Fallback to intro if no redirect determined
+    if (!redirectHref) {
+      redirectHref = '/(auth)/intro-1';
+    }
 
-  if (isLoading || hasSeenIntro === null) {
-    return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
-  }
+    // Perform redirect once
+    if (redirectHref && !hasRedirected.current) {
+      hasRedirected.current = true;
+      router.replace(redirectHref as any);
+    }
+  }, [isLoading, hasSeenIntro, status, router]);
 
-  if (redirectHref) {
-    return <Redirect href={redirectHref as any} />;
-  }
-
+  // Show loading state
   return (
     <View style={styles.container}>
       <ActivityIndicator size="large" />

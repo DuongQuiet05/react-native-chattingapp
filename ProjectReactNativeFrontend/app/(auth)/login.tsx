@@ -48,8 +48,6 @@ export default function LoginScreen() {
     try {
       await signIn({ username, password });
     } catch (error: any) {
-      console.error('Đăng nhập thất bại', error);
-
       // Xử lý thông báo lỗi thân thiện với người dùng
       let message = 'Đăng nhập thất bại';
       
@@ -81,10 +79,6 @@ export default function LoginScreen() {
         if (error.status !== 401 && !error.message.match(/^\d{3}/)) {
           message = error.message;
         }
-      }
-      
-      if (error?.details) {
-        console.error('Chi tiết lỗi:', error.details);
       }
 
       setErrorMessage(message);

@@ -5,57 +5,48 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    SectionList,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  FlatList,
+  Image,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { useConversations } from '@/hooks/api/use-conversations';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import type { ConversationSummary } from '@/lib/api/conversations';
+import { SendFriendRequestModal } from '@/components/send-friend-request-modal';
+import type { PostDto } from '@/lib/api/posts';
+import { getFeed } from '@/lib/api/posts';
 import { searchUsers, type UserSearchResult } from '@/lib/api/friends';
 
 dayjs.extend(relativeTime);
 dayjs.locale('vi');
 
-interface SearchSection {
-  title: string;
-  data: (UserSearchResult | ConversationSummary)[];
-  type: 'users' | 'conversations';
-}
+type FilterType = 'Post' | 'Account';
 
 export default function SearchScreen() {
-  const colorScheme = useColorScheme();
   const [query, setQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState<FilterType>('Account');
   const [loading, setLoading] = useState(false);
   const [userResults, setUserResults] = useState<UserSearchResult[]>([]);
-  const { data: conversations } = useConversations();
+  const [postResults, setPostResults] = useState<PostDto[]>([]);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<{ id: number; name: string } | null>(null);
 
-  // Filter conversations based on query
-  const conversationResults = conversations?.filter((conv) => {
-    if (!query.trim()) return false;
-    const q = query.toLowerCase();
-    return conv.title?.toLowerCase().includes(q);
-  }) || [];
-
-  // Debounced search for users
+  // Debounced search
   useEffect(() => {
     if (!query.trim()) {
       setUserResults([]);
+      setPostResults([]);
       return;
     }
 
     // Backend requires at least 2 characters
     if (query.trim().length < 2) {
       setUserResults([]);
+      setPostResults([]);
       setLoading(false);
       return;
     }
@@ -63,169 +54,97 @@ export default function SearchScreen() {
     const timer = setTimeout(async () => {
       setLoading(true);
       try {
-        const results = await searchUsers(query);
-        setUserResults(results);
+        if (activeFilter === 'Account') {
+          const results = await searchUsers(query);
+          setUserResults(results);
+        } else if (activeFilter === 'Post') {
+          // Backend doesn't have search endpoint, so we fetch feed and filter client-side
+          const searchQuery = query.trim().toLowerCase();
+          const feedData = await getFeed(0, 100); // Get more posts to search through
+          const filtered = (feedData.content || []).filter((post) =>
+            post.content.toLowerCase().includes(searchQuery)
+          );
+          setPostResults(filtered);
+        }
       } catch (error) {
         console.error('Search error:', error);
         setUserResults([]);
+        setPostResults([]);
       } finally {
         setLoading(false);
       }
     }, 500); // Debounce 500ms
 
     return () => clearTimeout(timer);
-  }, [query]);
-
-  // Create sections for SectionList
-  const sections: SearchSection[] = [];
-  
-  if (conversationResults.length > 0) {
-    sections.push({
-      title: 'Cuộc trò chuyện',
-      data: conversationResults,
-      type: 'conversations',
-    });
-  }
-
-  if (userResults.length > 0) {
-    sections.push({
-      title: 'Người dùng',
-      data: userResults,
-      type: 'users',
-    });
-  }
-
-  const handleConversationPress = (conversation: ConversationSummary) => {
-    router.push(`/chat/${conversation.id}`);
-  };
+  }, [query, activeFilter]);
 
   const handleUserPress = (user: UserSearchResult) => {
-    if (user.relationshipStatus === 'FRIEND') {
-      // TODO: Create or navigate to conversation with this friend
-      Alert.alert(
-        'Nhắn tin',
-        `Bắt đầu cuộc trò chuyện với ${user.displayName}?`,
-        [
-          { text: 'Hủy', style: 'cancel' },
-          {
-            text: 'Nhắn tin',
-            onPress: () => {
-              // TODO: Implement create/navigate to conversation
-              console.log('Start conversation with:', user.id);
-            },
-          },
-        ]
-      );
-    } else if (user.relationshipStatus === 'STRANGER') {
-      Alert.alert(
-        'Thêm bạn bè',
-        `Gửi lời mời kết bạn đến ${user.displayName}?`,
-        [
-          { text: 'Hủy', style: 'cancel' },
-          {
-            text: 'Gửi lời mời',
-            onPress: () => {
-              // Navigate to search-users screen which has the send request modal
-              router.push('/(tabs)/search-users' as any);
-            },
-          },
-        ]
-      );
-    } else if (user.relationshipStatus === 'REQUEST_RECEIVED') {
-      Alert.alert(
-        'Lời mời kết bạn',
-        `${user.displayName} đã gửi lời mời kết bạn đến bạn`,
-        [
-          { text: 'Xem sau', style: 'cancel' },
-          {
-            text: 'Xem lời mời',
-            onPress: () => {
-              router.push('/(tabs)/friend-requests' as any);
-            },
-          },
-        ]
-      );
-    } else if (user.relationshipStatus === 'REQUEST_SENT') {
-      Alert.alert(
-        'Đã gửi lời mời',
-        `Bạn đã gửi lời mời kết bạn đến ${user.displayName}`,
-        [{ text: 'OK' }]
-      );
+    // Navigate to user profile or handle action
+    router.push(`/(tabs)/profile/${user.id}` as any);
+  };
+
+  const handlePostPress = (post: PostDto) => {
+    router.push(`/(tabs)/post-detail?postId=${post.id}` as any);
+  };
+
+  const handleSendFriendRequest = (userId: number, userName: string) => {
+    setSelectedUser({ id: userId, name: userName });
+    setModalVisible(true);
+  };
+
+  const handleModalSuccess = async () => {
+    // Refresh search results after sending request
+    if (query.trim().length >= 2 && activeFilter === 'Account') {
+      setLoading(true);
+      try {
+        const results = await searchUsers(query);
+        setUserResults(results);
+      } catch (error) {
+        console.error('Search error:', error);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
-  const renderConversationItem = (item: ConversationSummary) => (
-    <TouchableOpacity
-      style={styles.itemContainer}
-      onPress={() => handleConversationPress(item)}>
-      <Image
-        source={
-          item.avatarUrl
-            ? { uri: item.avatarUrl }
-            : require('@/assets/images/icon.png')
-        }
-        style={styles.avatar}
-      />
-      <View style={styles.itemInfo}>
-        <ThemedText style={styles.itemTitle}>{item.title}</ThemedText>
-        {item.lastMessagePreview && (
-          <ThemedText style={styles.itemSubtitle} numberOfLines={1}>
-            {item.lastMessagePreview}
-          </ThemedText>
-        )}
-        {item.lastMessageAt && (
-          <ThemedText style={styles.itemTime}>
-            {dayjs(item.lastMessageAt).fromNow()}
-          </ThemedText>
-        )}
-      </View>
-      <Ionicons name="chevron-forward" size={20} color="#999" />
-    </TouchableOpacity>
-  );
-
   const renderUserItem = (item: UserSearchResult) => {
-    const renderActionButton = () => {
+    const getActionButton = () => {
       switch (item.relationshipStatus) {
         case 'STRANGER':
           return (
             <TouchableOpacity
-              style={[styles.actionButton, styles.primaryButton]}
+              style={[styles.actionButton, styles.followButton]}
               onPress={(e) => {
                 e.stopPropagation();
-                handleUserPress(item);
+                handleSendFriendRequest(item.id, item.displayName || item.username);
               }}>
-              <ThemedText style={styles.actionButtonText}>Kết bạn</ThemedText>
+              <Text style={styles.followButtonText}>Kết bạn</Text>
             </TouchableOpacity>
           );
 
         case 'FRIEND':
           return (
-            <TouchableOpacity
-              style={[styles.actionButton, styles.successButton]}
-              onPress={(e) => {
-                e.stopPropagation();
-                handleUserPress(item);
-              }}>
-              <ThemedText style={styles.actionButtonText}>Nhắn tin</ThemedText>
-            </TouchableOpacity>
+            <View style={[styles.actionButton, styles.friendButton]}>
+              <Text style={styles.friendButtonText}>Bạn bè</Text>
+            </View>
           );
 
         case 'REQUEST_SENT':
           return (
             <View style={[styles.actionButton, styles.disabledButton]}>
-              <ThemedText style={styles.disabledButtonText}>Đã gửi</ThemedText>
+              <Text style={styles.disabledButtonText}>Đã gửi</Text>
             </View>
           );
 
         case 'REQUEST_RECEIVED':
           return (
             <TouchableOpacity
-              style={[styles.actionButton, styles.primaryButton]}
+              style={[styles.actionButton, styles.followButton]}
               onPress={(e) => {
                 e.stopPropagation();
-                handleUserPress(item);
+                router.push('/(tabs)/friend-requests' as any);
               }}>
-              <ThemedText style={styles.actionButtonText}>Chấp nhận</ThemedText>
+              <Text style={styles.followButtonText}>Chấp nhận</Text>
             </TouchableOpacity>
           );
 
@@ -235,73 +154,161 @@ export default function SearchScreen() {
     };
 
     return (
-      <TouchableOpacity
-        style={styles.itemContainer}
-        onPress={() => handleUserPress(item)}>
+      <TouchableOpacity style={styles.itemContainer} onPress={() => handleUserPress(item)}>
         <Image
-          source={
-            item.avatarUrl
-              ? { uri: item.avatarUrl }
-              : require('@/assets/images/icon.png')
-          }
+          source={{ uri: item.avatarUrl || 'https://i.pravatar.cc/150' }}
           style={styles.avatar}
         />
         <View style={styles.itemInfo}>
-          <ThemedText style={styles.itemTitle}>{item.displayName}</ThemedText>
-          <ThemedText style={styles.itemSubtitle}>@{item.username}</ThemedText>
-          {item.phoneNumber && (
-            <ThemedText style={styles.itemPhone}>📱 {item.phoneNumber}</ThemedText>
-          )}
-          {item.mutualFriendsCount > 0 && (
-            <ThemedText style={styles.mutualFriends}>
-              {item.mutualFriendsCount} bạn chung
-            </ThemedText>
-          )}
+          <Text style={styles.itemTitle}>{item.displayName}</Text>
+          <Text style={styles.itemSubtitle}>@{item.username}</Text>
         </View>
-        {renderActionButton()}
+        {getActionButton()}
       </TouchableOpacity>
     );
   };
 
-  const renderItem = ({ item, section }: { item: any; section: SearchSection }) => {
-    if (section.type === 'conversations') {
-      return renderConversationItem(item as ConversationSummary);
-    }
-    return renderUserItem(item as UserSearchResult);
+  const renderPostItem = (item: PostDto) => {
+    return (
+      <TouchableOpacity style={styles.postContainer} onPress={() => handlePostPress(item)}>
+        <View style={styles.postHeader}>
+          <Image
+            source={{ uri: item.authorAvatar || 'https://i.pravatar.cc/150' }}
+            style={styles.postAvatar}
+          />
+          <View style={styles.postAuthorInfo}>
+            <Text style={styles.postAuthorName}>{item.authorName}</Text>
+            <Text style={styles.postTime}>{dayjs(item.createdAt).fromNow()}</Text>
+          </View>
+          <TouchableOpacity>
+            <Ionicons name="ellipsis-vertical" size={20} color="#999" />
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.postContent} numberOfLines={3}>
+          {item.content}
+        </Text>
+        {item.mediaUrls && item.mediaUrls.length > 0 && (
+          <View style={styles.postMediaContainer}>
+            {item.mediaUrls.slice(0, 2).map((url, index) => (
+              <Image key={index} source={{ uri: url }} style={styles.postMedia} />
+            ))}
+          </View>
+        )}
+        <View style={styles.postStats}>
+          <View style={styles.statItem}>
+            <Ionicons name="heart-outline" size={16} color="#666" />
+            <Text style={styles.statText}>{item.reactionCount || 0}</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Ionicons name="chatbubble-outline" size={16} color="#666" />
+            <Text style={styles.statText}>{item.commentCount || 0}</Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
   };
 
-  const renderSectionHeader = ({ section }: { section: SearchSection }) => (
-    <ThemedView style={styles.sectionHeader}>
-      <ThemedText style={styles.sectionTitle}>{section.title}</ThemedText>
-    </ThemedView>
-  );
+  const renderResults = () => {
+    if (loading && query.trim()) {
+      return (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color="#000" />
+          <Text style={styles.loadingText}>Đang tìm kiếm...</Text>
+        </View>
+      );
+    }
+
+    if (!query.trim()) {
+      return (
+        <View style={styles.emptyState}>
+          <Ionicons name="search-outline" size={64} color="#ccc" />
+          <Text style={styles.emptyTitle}>Tìm kiếm</Text>
+          <Text style={styles.emptySubtitle}>
+            Nhập số điện thoại, tên hoặc username để tìm kiếm (tối thiểu 2 ký tự)
+          </Text>
+        </View>
+      );
+    }
+
+    if (query.trim().length < 2) {
+      return (
+        <View style={styles.emptyState}>
+          <Ionicons name="information-circle-outline" size={64} color="#ffa500" />
+          <Text style={styles.emptyTitle}>Quá ngắn</Text>
+          <Text style={styles.emptySubtitle}>
+            Vui lòng nhập ít nhất 2 ký tự để tìm kiếm (số điện thoại, tên hoặc username)
+          </Text>
+        </View>
+      );
+    }
+
+    if (activeFilter === 'Account') {
+      if (userResults.length === 0) {
+        return (
+          <View style={styles.emptyState}>
+            <Ionicons name="sad-outline" size={64} color="#ccc" />
+            <Text style={styles.emptyTitle}>Không tìm thấy kết quả</Text>
+            <Text style={styles.emptySubtitle}>Thử tìm kiếm với từ khóa khác</Text>
+          </View>
+        );
+      }
+
+      return (
+        <FlatList
+          data={userResults}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item }) => renderUserItem(item)}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          contentContainerStyle={styles.listContent}
+        />
+      );
+    }
+
+    if (activeFilter === 'Post') {
+      if (postResults.length === 0) {
+        return (
+          <View style={styles.emptyState}>
+            <Ionicons name="sad-outline" size={64} color="#ccc" />
+            <Text style={styles.emptyTitle}>Không tìm thấy kết quả</Text>
+            <Text style={styles.emptySubtitle}>Thử tìm kiếm với từ khóa khác</Text>
+          </View>
+        );
+      }
+
+      return (
+        <FlatList
+          data={postResults}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item }) => renderPostItem(item)}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          contentContainerStyle={styles.listContent}
+        />
+      );
+    }
+
+    return null;
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-      <ThemedView style={styles.container}>
+      <View style={styles.container}>
         {/* Search Header */}
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color="#0a84ff" />
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={24} color="#000" />
           </TouchableOpacity>
-          <View
-            style={[
-              styles.searchContainer,
-              { backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : '#f5f5f5' },
-            ]}>
+          <View style={styles.searchContainer}>
             <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
             <TextInput
-              style={[
-                styles.searchInput,
-                { color: colorScheme === 'dark' ? '#fff' : '#000' },
-              ]}
-              placeholder="Tìm người dùng (SĐT/Username) hoặc tin nhắn..."
+              style={styles.searchInput}
+              placeholder="Tìm kiếm theo số điện thoại, tên, username..."
               value={query}
               onChangeText={setQuery}
               placeholderTextColor="#999"
               autoFocus
+              keyboardType="default"
+              autoCapitalize="none"
+              autoCorrect={false}
             />
             {query.length > 0 && (
               <TouchableOpacity onPress={() => setQuery('')}>
@@ -311,53 +318,55 @@ export default function SearchScreen() {
           </View>
         </View>
 
+        {/* Filter Buttons */}
+        <View style={styles.filterContainer}>
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              activeFilter === 'Post' && styles.activeFilterButton,
+            ]}
+            onPress={() => setActiveFilter('Post')}>
+            <Text
+              style={[
+                styles.filterText,
+                activeFilter === 'Post' && styles.activeFilterText,
+              ]}>
+              Post
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              activeFilter === 'Account' && styles.activeFilterButton,
+            ]}
+            onPress={() => setActiveFilter('Account')}>
+            <Text
+              style={[
+                styles.filterText,
+                activeFilter === 'Account' && styles.activeFilterText,
+              ]}>
+              Account
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Results */}
-        {loading && query.trim() ? (
-          <View style={styles.centered}>
-            <ActivityIndicator size="large" />
-            <ThemedText style={styles.loadingText}>Đang tìm kiếm...</ThemedText>
-          </View>
-        ) : !query.trim() ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="search-outline" size={64} color="#ccc" />
-            <ThemedText style={styles.emptyTitle}>Tìm kiếm</ThemedText>
-            <ThemedText style={styles.emptySubtitle}>
-              Nhập ít nhất 2 ký tự để tìm kiếm
-            </ThemedText>
-            <ThemedText style={styles.emptyHint}>
-              💡 Có thể tìm theo: Số điện thoại, Username, Tên hiển thị
-            </ThemedText>
-          </View>
-        ) : query.trim().length < 2 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="information-circle-outline" size={64} color="#ffa500" />
-            <ThemedText style={styles.emptyTitle}>Quá ngắn</ThemedText>
-            <ThemedText style={styles.emptySubtitle}>
-              Vui lòng nhập ít nhất 2 ký tự để tìm kiếm
-            </ThemedText>
-          </View>
-        ) : sections.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="sad-outline" size={64} color="#ccc" />
-            <ThemedText style={styles.emptyTitle}>Không tìm thấy kết quả</ThemedText>
-            <ThemedText style={styles.emptySubtitle}>
-              Thử tìm kiếm với từ khóa khác
-            </ThemedText>
-          </View>
-        ) : (
-          <SectionList
-            sections={sections}
-            keyExtractor={(item: any, index) => 
-              'id' in item ? `${item.id}-${index}` : `user-${item.username}-${index}`
-            }
-            renderItem={renderItem}
-            renderSectionHeader={renderSectionHeader}
-            ItemSeparatorComponent={() => <View style={styles.separator} />}
-            contentContainerStyle={styles.listContent}
-            stickySectionHeadersEnabled={false}
+        {renderResults()}
+
+        {/* Send Friend Request Modal */}
+        {selectedUser && (
+          <SendFriendRequestModal
+            visible={modalVisible}
+            recipientId={selectedUser.id}
+            recipientName={selectedUser.name}
+            onClose={() => {
+              setModalVisible(false);
+              setSelectedUser(null);
+            }}
+            onSuccess={handleModalSuccess}
           />
         )}
-      </ThemedView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -365,9 +374,11 @@ export default function SearchScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+    backgroundColor: '#fff',
   },
   container: {
     flex: 1,
+    backgroundColor: '#fff',
   },
   header: {
     flexDirection: 'row',
@@ -385,6 +396,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#f5f5f5',
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -396,6 +408,33 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
+    color: '#000',
+  },
+  filterContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#e0e0e0',
+  },
+  filterButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f5f5f5',
+  },
+  activeFilterButton: {
+    backgroundColor: '#000',
+  },
+  filterText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#666',
+  },
+  activeFilterText: {
+    color: '#fff',
+    fontWeight: '600',
   },
   centered: {
     flex: 1,
@@ -405,7 +444,8 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    opacity: 0.7,
+    color: '#666',
+    marginTop: 8,
   },
   emptyState: {
     flex: 1,
@@ -417,31 +457,15 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '600',
+    color: '#000',
   },
   emptySubtitle: {
     fontSize: 14,
-    opacity: 0.7,
+    color: '#666',
     textAlign: 'center',
-  },
-  emptyHint: {
-    fontSize: 13,
-    opacity: 0.6,
-    textAlign: 'center',
-    marginTop: 12,
-    fontStyle: 'italic',
   },
   listContent: {
     paddingVertical: 8,
-  },
-  sectionHeader: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    opacity: 0.7,
-    textTransform: 'uppercase',
   },
   itemContainer: {
     flexDirection: 'row',
@@ -463,63 +487,108 @@ const styles = StyleSheet.create({
   itemTitle: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#000',
   },
   itemSubtitle: {
     fontSize: 14,
-    opacity: 0.7,
-  },
-  itemPhone: {
-    fontSize: 13,
-    opacity: 0.6,
-    marginTop: 2,
-  },
-  mutualFriends: {
-    fontSize: 12,
-    opacity: 0.6,
-    marginTop: 2,
-  },
-  itemTime: {
-    fontSize: 12,
-    opacity: 0.5,
-  },
-  statusBadge: {
-    alignSelf: 'flex-start',
-    marginTop: 4,
-  },
-  statusText: {
-    fontSize: 12,
-    opacity: 0.7,
-  },
-  separator: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: '#e0e0e0',
-    marginLeft: 76, // Align with text (48px avatar + 12px gap + 16px padding)
+    color: '#666',
   },
   actionButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 6,
+    borderRadius: 20,
     minWidth: 80,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  primaryButton: {
-    backgroundColor: '#0a84ff',
+  followButton: {
+    backgroundColor: '#000',
   },
-  successButton: {
-    backgroundColor: '#34c759',
-  },
-  disabledButton: {
-    backgroundColor: '#f0f0f0',
-  },
-  actionButtonText: {
+  followButtonText: {
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
+  },
+  friendButton: {
+    backgroundColor: '#f0f0f0',
+  },
+  friendButtonText: {
+    color: '#000',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  disabledButton: {
+    backgroundColor: '#f0f0f0',
   },
   disabledButtonText: {
     color: '#999',
     fontSize: 14,
     fontWeight: '600',
+  },
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#e0e0e0',
+    marginLeft: 76,
+  },
+  // Post styles
+  postContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+  },
+  postHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  postAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#e0e0e0',
+  },
+  postAuthorInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  postAuthorName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#000',
+  },
+  postTime: {
+    fontSize: 13,
+    color: '#999',
+    marginTop: 2,
+  },
+  postContent: {
+    fontSize: 15,
+    lineHeight: 20,
+    color: '#000',
+    marginBottom: 12,
+  },
+  postMediaContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  postMedia: {
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
+  },
+  postStats: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  statText: {
+    fontSize: 14,
+    color: '#666',
   },
 });

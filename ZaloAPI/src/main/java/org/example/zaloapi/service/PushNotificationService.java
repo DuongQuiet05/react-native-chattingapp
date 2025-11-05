@@ -166,5 +166,51 @@ public class PushNotificationService {
         deviceRepository.deleteByUserIdAndDeviceId(userId, deviceId);
         log.info("✅ Unregistered device for user {}: {}", userId, deviceId);
     }
+
+    /**
+     * Gửi push notification khi có comment trên bài viết
+     */
+    public void sendPostCommentNotification(Long receiverId, String commenterName, Long postId) {
+        Map<String, String> data = new HashMap<>();
+        data.put("type", "POST_COMMENT");
+        data.put("postId", String.valueOf(postId));
+        data.put("commenterName", commenterName);
+        
+        String title = "Bình luận mới";
+        String body = commenterName + " đã bình luận bài viết của bạn";
+        
+        sendPushNotification(receiverId, title, body, data);
+    }
+
+    /**
+     * Gửi push notification khi có reply comment
+     */
+    public void sendCommentReplyNotification(Long receiverId, String replierName, Long commentId) {
+        Map<String, String> data = new HashMap<>();
+        data.put("type", "COMMENT_REPLY");
+        data.put("commentId", String.valueOf(commentId));
+        data.put("replierName", replierName);
+        
+        String title = "Phản hồi bình luận";
+        String body = replierName + " đã phản hồi bình luận của bạn";
+        
+        sendPushNotification(receiverId, title, body, data);
+    }
+
+    /**
+     * Gửi push notification khi có reaction trên bài viết
+     */
+    public void sendPostReactionNotification(Long receiverId, String reactorName, String reactionText, Long postId) {
+        Map<String, String> data = new HashMap<>();
+        data.put("type", "POST_REACTION");
+        data.put("postId", String.valueOf(postId));
+        data.put("reactorName", reactorName);
+        data.put("reactionText", reactionText);
+        
+        String title = "Reaction mới";
+        String body = reactorName + " đã " + reactionText + " bài viết của bạn";
+        
+        sendPushNotification(receiverId, title, body, data);
+    }
 }
 

@@ -21,6 +21,8 @@ public class PostReactionService {
     private final PostReactionRepository postReactionRepository;
     private final PostRepository postRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
+    private final PushNotificationService pushNotificationService;
 
     @Transactional
     public PostDto reactToPost(Long postId, Long userId, ReactToPostRequest request) {
@@ -35,6 +37,8 @@ public class PostReactionService {
         Optional<PostReaction> existing = postReactionRepository
                 .findByPostIdAndUserIdAndReactionType(postId, userId, type);
 
+        Long postAuthorId = post.getAuthor().getId();
+        
         if (existing.isPresent()) {
             // Remove reaction if same type (toggle)
             postReactionRepository.delete(existing.get());
@@ -50,6 +54,31 @@ public class PostReactionService {
             reaction.setUser(user);
             reaction.setReactionType(type);
             postReactionRepository.save(reaction);
+            
+            // Create notification for post author
+            // Don't notify if reacting to own post
+            if (!postAuthorId.equals(userId)) {
+                try {
+                    String reactionText = getReactionText(type);
+                    notificationService.createNotification(
+                        postAuthorId,
+                        org.example.zaloapi.entity.Notification.NotificationType.POST_REACTION,
+                        "@" + user.getUsername() + " " + reactionText + " your post",
+                        user.getDisplayName() + " " + reactionText + " your post",
+                        postId,
+                        "POST"
+                    );
+                    
+                    pushNotificationService.sendPostReactionNotification(
+                        postAuthorId,
+                        user.getDisplayName(),
+                        reactionText,
+                        postId
+                    );
+                } catch (Exception e) {
+                    System.err.println("⚠️ Failed to create post reaction notification: " + e.getMessage());
+                }
+            }
         }
 
         // Return updated post DTO
@@ -62,6 +91,25 @@ public class PostReactionService {
         postReactionRepository.findByPostId(postId).stream()
                 .filter(r -> r.getUser().getId().equals(userId))
                 .forEach(postReactionRepository::delete);
+    }
+    
+    private String getReactionText(PostReaction.ReactionType type) {
+        switch (type) {
+            case LIKE:
+                return "liked";
+            case LOVE:
+                return "loved";
+            case HAHA:
+                return "laughed at";
+            case WOW:
+                return "wowed";
+            case SAD:
+                return "saddened";
+            case ANGRY:
+                return "got angry at";
+            default:
+                return "reacted to";
+        }
     }
 }
 

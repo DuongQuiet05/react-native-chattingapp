@@ -144,7 +144,20 @@ export async function cancelFriendRequest(requestId: number): Promise<ApiRespons
  * Lấy danh sách bạn bè
  */
 export async function getFriendsList(): Promise<FriendProfile[]> {
-  return apiFetch<FriendProfile[]>('/friends');
+  try {
+    const response = await apiFetch<FriendProfile[]>('/friends');
+    console.log('✅ Friends list response:', response);
+    return Array.isArray(response) ? response : [];
+  } catch (error: any) {
+    console.error('❌ Error fetching friends list:', error);
+    console.error('Error status:', error?.status);
+    console.error('Error details:', error?.details);
+    // Nếu là lỗi 400 và có message, có thể là backend issue
+    if (error?.status === 400) {
+      console.warn('⚠️ Backend returned 400 for /friends endpoint. This might indicate a backend issue.');
+    }
+    throw error;
+  }
 }
 
 /**

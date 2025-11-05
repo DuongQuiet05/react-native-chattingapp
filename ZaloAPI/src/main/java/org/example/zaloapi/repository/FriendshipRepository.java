@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,16 +25,33 @@ public interface FriendshipRepository extends JpaRepository<Friendship, Long> {
     /**
      * Lấy danh sách bạn bè của user
      */
-    @Query("SELECT CASE WHEN f.user1.id = :userId THEN f.user2 ELSE f.user1 END " +
-           "FROM Friendship f WHERE f.user1.id = :userId OR f.user2.id = :userId")
-    List<User> findFriendsByUserId(@Param("userId") Long userId);
-
+    @Query("SELECT f FROM Friendship f " +
+           "WHERE f.user1.id = :userId OR f.user2.id = :userId")
+    List<Friendship> findFriendshipsByUserId(@Param("userId") Long userId);
+    
+    /**
+     * Lấy danh sách ID bạn bè khi user là user1
+     */
+    @Query("SELECT f.user2.id FROM Friendship f WHERE f.user1.id = :userId")
+    List<Long> findFriendIdsWhereUser1(@Param("userId") Long userId);
+    
+    /**
+     * Lấy danh sách ID bạn bè khi user là user2
+     */
+    @Query("SELECT f.user1.id FROM Friendship f WHERE f.user2.id = :userId")
+    List<Long> findFriendIdsWhereUser2(@Param("userId") Long userId);
+    
     /**
      * Lấy danh sách ID bạn bè của user (để check nhanh)
+     * Tổng hợp từ 2 queries để tránh CASE statement issue
      */
-    @Query("SELECT CASE WHEN f.user1.id = :userId THEN f.user2.id ELSE f.user1.id END " +
-           "FROM Friendship f WHERE f.user1.id = :userId OR f.user2.id = :userId")
-    List<Long> findFriendIdsByUserId(@Param("userId") Long userId);
+    default List<Long> findFriendIdsByUserId(Long userId) {
+        List<Long> ids1 = findFriendIdsWhereUser1(userId);
+        List<Long> ids2 = findFriendIdsWhereUser2(userId);
+        List<Long> allIds = new ArrayList<>(ids1);
+        allIds.addAll(ids2);
+        return allIds;
+    }
 
     /**
      * Đếm số bạn bè

@@ -117,11 +117,7 @@ export default function FriendRequestsScreen() {
     return (
       <ThemedView style={styles.requestItem}>
         <Image
-          source={
-            item.sender.avatarUrl
-              ? { uri: item.sender.avatarUrl }
-              : require('@/assets/images/icon.png')
-          }
+          source={{ uri: item.sender.avatarUrl || 'https://i.pravatar.cc/150' }}
           style={styles.avatar}
         />
 

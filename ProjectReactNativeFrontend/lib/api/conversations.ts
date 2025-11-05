@@ -41,6 +41,7 @@ export interface ConversationSummary {
   lastMessagePreview?: string;
   lastMessageAt?: string;
   unreadCount?: number;
+  participantStatus?: 'ONLINE' | 'OFFLINE' | 'AWAY'; // Status của participant (cho PRIVATE conversation)
 }
 
 export interface ConversationParticipant {
@@ -63,6 +64,8 @@ function transformConversation(
   let title = '';
   let avatarUrl: string | undefined;
 
+  let participantStatus: 'ONLINE' | 'OFFLINE' | 'AWAY' | undefined;
+
   if (conv.type === 'GROUP') {
     title = conv.groupName || 'Nhóm không tên';
     avatarUrl = conv.groupAvatarUrl || undefined;
@@ -72,6 +75,7 @@ function transformConversation(
     if (otherUser) {
       title = otherUser.displayName;
       avatarUrl = otherUser.avatarUrl || undefined;
+      participantStatus = otherUser.status;
     } else {
       title = 'Người dùng';
     }
@@ -85,6 +89,7 @@ function transformConversation(
     lastMessagePreview: conv.lastMessage?.content,
     lastMessageAt: conv.lastMessage?.sentAt,
     unreadCount: 0, // Backend chưa có field này
+    participantStatus,
   };
 }
 

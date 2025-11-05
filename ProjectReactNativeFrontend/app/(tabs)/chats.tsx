@@ -2,17 +2,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, TouchableOpacity, View, ScrollView, Image, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ConversationListItem } from '@/components/conversation-list-item';
+import { CreateChatModal } from '@/components/create-chat-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { conversationQueryKeys, useConversations } from '@/hooks/api/use-conversations';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import type { ConversationSummary } from '@/lib/api/conversations';
 import { useStomp } from '@/providers/stomp-provider';
+import { getFriendsList, type FriendProfile } from '@/lib/api/friends';
 
 export default function ChatsScreen() {
   const router = useRouter();
@@ -26,6 +28,9 @@ export default function ChatsScreen() {
     refetch,
     isFetching,
   } = useConversations();
+  const [friends, setFriends] = useState<FriendProfile[]>([]);
+  const [loadingFriends, setLoadingFriends] = useState(false);
+  const [createChatModalVisible, setCreateChatModalVisible] = useState(false);
 
   const handlePressConversation = useCallback(
     (conversationId: number) => {
@@ -34,9 +39,36 @@ export default function ChatsScreen() {
     [router],
   );
 
+  const handleCreateChatSuccess = useCallback(
+    (conversationId: number) => {
+      setCreateChatModalVisible(false);
+      router.push(`/chat/${conversationId}`);
+    },
+    [router],
+  );
+
   useFocusEffect(
     useCallback(() => {
       void refetch();
+      // Load friends for stories
+      setLoadingFriends(true);
+      getFriendsList()
+        .then((friendsList) => {
+          // Handle empty list gracefully
+          if (Array.isArray(friendsList)) {
+            setFriends(friendsList.slice(0, 10)); // Get first 10 friends for stories
+          } else {
+            setFriends([]);
+          }
+        })
+        .catch((error) => {
+          console.warn('Could not load friends:', error);
+          // Don't show alert, just set empty array
+          setFriends([]);
+        })
+        .finally(() => {
+          setLoadingFriends(false);
+        });
     }, [refetch]),
   );
 
@@ -100,46 +132,80 @@ export default function ChatsScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ThemedView style={styles.container}>
-        {/* Header with Search */}
+        {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity
-            style={[
-              styles.searchContainer,
-              { backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : '#f5f5f5' }
-            ]}
-            onPress={() => router.push('/(tabs)/search-users' as any)}
-            activeOpacity={0.7}>
-            <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
-            <ThemedText style={[styles.searchPlaceholder, { color: '#999' }]}>
-              Tìm kiếm bạn bè...
-            </ThemedText>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.newChatButton}
-            onPress={() => router.push('/(tabs)/contacts' as any)}>
-            <Ionicons name="create-outline" size={24} color="#0a84ff" />
-          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Chat</Text>
+          <View style={styles.headerRight}>
+            <TouchableOpacity
+              style={styles.searchButton}
+              onPress={() => router.push('/(tabs)/search' as any)}
+              activeOpacity={0.7}>
+              <Ionicons name="search" size={24} color="#000" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.newChatButton}
+              onPress={() => setCreateChatModalVisible(true)}
+              activeOpacity={0.7}>
+              <View style={styles.newChatButtonContent}>
+                <Ionicons name="add" size={20} color="#fff" />
+                <Text style={styles.newChatButtonText}>New Chat</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        <FlatList
-        data={conversations ?? []}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <ConversationListItem conversation={item} onPress={handlePressConversation} />
-        )}
-        refreshControl={
-          <RefreshControl refreshing={isFetching} onRefresh={() => void refetch()} />
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <ThemedText style={styles.emptyTitle}>Chưa có cuộc trò chuyện</ThemedText>
-            <ThemedText style={styles.emptySubtitle}>
-              Nhấn vào biểu tượng bút để bắt đầu cuộc trò chuyện mới
-            </ThemedText>
+        {/* Stories Section */}
+        {friends.length > 0 && (
+          <View style={styles.storiesContainer}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.storiesContent}>
+              {friends.map((friend) => (
+                <TouchableOpacity
+                  key={friend.id}
+                  style={styles.storyItem}
+                  onPress={() => router.push(`/(tabs)/profile/${friend.id}` as any)}>
+                  <Image
+                    source={{ uri: friend.avatarUrl || 'https://i.pravatar.cc/150' }}
+                    style={styles.storyAvatar}
+                  />
+                  <Text style={styles.storyName} numberOfLines={1}>
+                    {friend.displayName || friend.username}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
-        }
+        )}
+
+        {/* Conversations List */}
+        <FlatList
+          data={conversations ?? []}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item }) => (
+            <ConversationListItem conversation={item} onPress={handlePressConversation} />
+          )}
+          refreshControl={
+            <RefreshControl refreshing={isFetching} onRefresh={() => void refetch()} />
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <ThemedText style={styles.emptyTitle}>Chưa có cuộc trò chuyện</ThemedText>
+              <ThemedText style={styles.emptySubtitle}>
+                Nhấn vào "+ New Chat" để bắt đầu cuộc trò chuyện mới
+              </ThemedText>
+            </View>
+          }
+        />
+      </ThemedView>
+
+      {/* Create Chat Modal */}
+      <CreateChatModal
+        visible={createChatModalVisible}
+        onClose={() => setCreateChatModalVisible(false)}
+        onSuccess={handleCreateChatSuccess}
       />
-    </ThemedView>
     </SafeAreaView>
   );
 }
@@ -147,44 +213,74 @@ export default function ChatsScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+    backgroundColor: '#fff',
   },
   container: {
     flex: 1,
+    backgroundColor: '#fff',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    gap: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#e0e0e0',
   },
-  searchContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    gap: 8,
-  },
-  searchIcon: {
-    marginRight: 4,
-  },
-  searchPlaceholder: {
-    flex: 1,
-    fontSize: 16,
-    opacity: 0.7,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
     color: '#000',
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  searchButton: {
+    padding: 4,
+  },
   newChatButton: {
-    padding: 8,
+    backgroundColor: '#000',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  newChatButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  newChatButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  storiesContainer: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#e0e0e0',
+    paddingVertical: 12,
+  },
+  storiesContent: {
+    paddingHorizontal: 16,
+    gap: 16,
+  },
+  storyItem: {
+    alignItems: 'center',
+    width: 70,
+  },
+  storyAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#f0f0f0',
+    marginBottom: 6,
+  },
+  storyName: {
+    fontSize: 12,
+    color: '#000',
+    textAlign: 'center',
   },
   centered: {
     flex: 1,

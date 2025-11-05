@@ -4,6 +4,7 @@ import { Colors } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth-context';
 import { useFriendRequestsCount } from '@/hooks/api/use-friend-requests-count';
 import { useUnreadCount } from '@/hooks/api/use-notifications';
+import { useUnreadMessagesCount } from '@/hooks/api/use-unread-messages-count';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
 import { Redirect, Tabs } from 'expo-router';
@@ -15,6 +16,7 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
   const { data: friendRequestCount } = useFriendRequestsCount();
   const { data: unreadCount } = useUnreadCount();
+  const { data: unreadMessagesCount } = useUnreadMessagesCount();
 
   if (status === 'loading') {
     return (
@@ -86,7 +88,7 @@ export default function TabLayout() {
         options={{
           title: 'Tin nhắn',
           tabBarIcon: ({ color }) => <IconSymbol size={24} name="message.fill" color={color} />,
-          tabBarBadge: unreadCount && unreadCount.count > 0 ? unreadCount.count : undefined,
+          tabBarBadge: unreadMessagesCount && unreadMessagesCount.count > 0 ? unreadMessagesCount.count : undefined,
         }}
       />
       <Tabs.Screen
@@ -143,6 +145,12 @@ export default function TabLayout() {
         name="privacy-settings"
         options={{
           href: null, // Ẩn khỏi tab bar
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          href: null, // Ẩn khỏi tab bar - route group
         }}
       />
     </Tabs>

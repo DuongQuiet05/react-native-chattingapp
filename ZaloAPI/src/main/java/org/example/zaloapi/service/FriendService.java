@@ -283,11 +283,27 @@ public class FriendService {
      */
     @Transactional(readOnly = true)
     public List<UserBasicDto> getFriends(Long userId) {
-        List<User> friends = friendshipRepository.findFriendsByUserId(userId);
-
-        return friends.stream()
-                .map(this::mapToUserBasicDto)
-                .collect(Collectors.toList());
+        try {
+            // Lấy danh sách ID bạn bè trước (không có lazy loading issue)
+            List<Long> friendIds = friendshipRepository.findFriendIdsByUserId(userId);
+            
+            if (friendIds == null || friendIds.isEmpty()) {
+                return new ArrayList<>();
+            }
+            
+            // Query User entities trực tiếp từ IDs (không qua Friendship)
+            List<User> friends = userRepository.findAllById(friendIds);
+            
+            return friends.stream()
+                    .filter(user -> user != null) // Filter out null users
+                    .map(this::mapToUserBasicDto)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            // Log error và return empty list thay vì throw exception
+            System.err.println("Error getting friends for user " + userId + ": " + e.getMessage());
+            e.printStackTrace();
+            return new ArrayList<>();
+        }
     }
 
     /**

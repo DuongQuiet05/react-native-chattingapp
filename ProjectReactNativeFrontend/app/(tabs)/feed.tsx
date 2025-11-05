@@ -397,6 +397,16 @@ export default function FeedScreen() {
         </View>
       </View>
 
+      {/* Search Bar */}
+      <TouchableOpacity
+        style={styles.searchBarContainer}
+        onPress={() => router.push('/(tabs)/search' as any)}>
+        <View style={styles.searchBar}>
+          <Ionicons name="search" size={20} color="#999999" style={styles.searchIcon} />
+          <Text style={styles.searchPlaceholder}>Search...</Text>
+        </View>
+      </TouchableOpacity>
+
       {/* Tabs */}
       <View style={styles.tabsContainer}>
         {tabs.map((tab) => (
@@ -845,5 +855,28 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
+  },
+  // Search Bar
+  searchBarContainer: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: '#FFFFFF',
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  searchIcon: {
+    marginRight: 4,
+  },
+  searchPlaceholder: {
+    flex: 1,
+    fontSize: 15,
+    color: '#999999',
   },
 });

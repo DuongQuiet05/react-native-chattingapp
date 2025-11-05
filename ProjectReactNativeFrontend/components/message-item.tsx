@@ -50,10 +50,12 @@ export function MessageItem({ message, isOwn }: MessageItemProps) {
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleTimeString('vi-VN', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    const ampm = hours >= 12 ? 'pm' : 'am';
+    const displayHours = hours % 12 || 12;
+    const displayMinutes = minutes.toString().padStart(2, '0');
+    return `${displayHours}.${displayMinutes} ${ampm}`;
   };
 
   const handleReaction = async (reactionType: string) => {
@@ -85,7 +87,7 @@ export function MessageItem({ message, isOwn }: MessageItemProps) {
             resizeMode="cover"
           />
           {message.content && message.content !== '📷 Đã gửi một ảnh' && (
-            <View style={[styles.textBubble, { backgroundColor: isOwn ? '#0a84ff' : '#f0f0f0' }]}>
+            <View style={[styles.textBubble, { backgroundColor: isOwn ? '#007AFF' : '#fff' }]}>
               <Text style={[styles.text, { color: isOwn ? '#fff' : '#000' }]}>
                 {message.content}
               </Text>
@@ -113,7 +115,7 @@ export function MessageItem({ message, isOwn }: MessageItemProps) {
           </View>
 
           {message.content && message.content !== '🎥 Đã gửi một video' && (
-            <View style={[styles.textBubble, { backgroundColor: isOwn ? '#0a84ff' : '#f0f0f0' }]}>
+            <View style={[styles.textBubble, { backgroundColor: isOwn ? '#007AFF' : '#fff' }]}>
               <Text style={[styles.text, { color: isOwn ? '#fff' : '#000' }]}>
                 {message.content}
               </Text>
@@ -138,7 +140,7 @@ export function MessageItem({ message, isOwn }: MessageItemProps) {
 
       {/* TEXT Message */}
       {message.messageType === 'TEXT' && (
-        <View style={[styles.textBubble, { backgroundColor: isOwn ? '#0a84ff' : '#f0f0f0' }]}>
+        <View style={[styles.textBubble, { backgroundColor: isOwn ? '#007AFF' : '#fff' }]}>
           <Text style={[styles.text, { color: isOwn ? '#fff' : '#000' }]}>
             {message.content}
           </Text>
@@ -263,8 +265,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   textBubble: {
-    padding: 10,
-    borderRadius: 15,
+    padding: 12,
+    borderRadius: 16,
     marginTop: 4,
   },
   text: {

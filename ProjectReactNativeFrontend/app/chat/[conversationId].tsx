@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
-import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActionSheetIOS,
@@ -14,8 +14,12 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Text,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import dayjs from 'dayjs';
 
 import { MessageItem } from '@/components/message-item';
 import { ThemedText } from '@/components/themed-text';
@@ -645,11 +649,7 @@ export default function ConversationScreen() {
     }
   };
 
-  useEffect(() => {
-    if (conversationDetail?.title) {
-      navigation.setOptions({ title: conversationDetail.title });
-    }
-  }, [conversationDetail?.title, navigation]);
+  // Removed navigation.setOptions to prevent duplicate header
 
   const markAsRead = useCallback(async () => {
     if (!Number.isFinite(numericId)) {
@@ -717,6 +717,36 @@ export default function ConversationScreen() {
     };
   }, []);
 
+  // Group messages by date and render date separators
+  // MUST be before early returns to follow Rules of Hooks
+  const groupedMessages = useMemo(() => {
+    const groups: Array<{ type: 'date' | 'message'; date?: string; message?: MessageDto }> = [];
+    let currentDate = '';
+
+    displayMessages.forEach((msg) => {
+      const msgDate = dayjs(msg.sentAt).format('YYYY-MM-DD');
+      const today = dayjs().format('YYYY-MM-DD');
+      const yesterday = dayjs().subtract(1, 'day').format('YYYY-MM-DD');
+
+      let displayDate = '';
+      if (msgDate === today) {
+        displayDate = 'Today';
+      } else if (msgDate === yesterday) {
+        displayDate = 'Yesterday';
+      } else {
+        displayDate = dayjs(msg.sentAt).format('DD MMM YYYY');
+      }
+
+      if (currentDate !== displayDate) {
+        groups.push({ type: 'date', date: displayDate });
+        currentDate = displayDate;
+      }
+      groups.push({ type: 'message', message: msg });
+    });
+
+    return groups;
+  }, [displayMessages]);
+
   if (!Number.isFinite(numericId)) {
     return (
       <ThemedView style={styles.centered}>
@@ -744,37 +774,70 @@ export default function ConversationScreen() {
     );
   }
 
+  const renderItem = ({ item }: { item: { type: 'date' | 'message'; date?: string; message?: MessageDto } }) => {
+    if (item.type === 'date') {
+      return (
+        <View style={styles.dateSeparator}>
+          <View style={styles.dateBubble}>
+            <Text style={styles.dateText}>{item.date}</Text>
+          </View>
+        </View>
+      );
+    }
+
+    if (item.message) {
+      const isMine = item.message.sender.id === user?.id;
+      return <MessageItem message={item.message} isOwn={isMine} />;
+    }
+
+    return null;
+  };
+
   const renderMessage = ({ item }: { item: MessageDto }) => {
     const isMine = item.sender.id === user?.id;
     return <MessageItem message={item} isOwn={isMine} />;
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.safeArea} edges={['bottom']}>
       <KeyboardAvoidingView
         behavior={Platform.select({ ios: 'padding', android: undefined })}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 96 : 0}
         style={styles.wrapper}>
-      <ThemedView style={styles.container}>
-        {conversationDetail ? (
-          <ThemedView style={styles.header}>
-            <ThemedText style={styles.headerTitle}>{conversationDetail.title}</ThemedText>
-            <ThemedText style={styles.headerSubtitle}>
-              {conversationDetail.participants.length > 0
-                ? conversationDetail.participants
-                    .map((participant) =>
-                      participant.user.displayName ?? participant.user.username,
-                    )
-                    .join(', ')
-                : 'Đang tải thành viên...'}
-            </ThemedText>
-          </ThemedView>
-        ) : null}
-        <FlatList
-          data={displayMessages}
-          ref={flatListRef}
-          keyExtractor={(item) => `${item.id}-${item.sentAt}`}
-          renderItem={renderMessage}
+      <View style={styles.container}>
+        {/* Header */}
+        {conversationDetail && (
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color="#000" />
+            </TouchableOpacity>
+            <View style={styles.headerCenter}>
+              <Text style={styles.headerTitle}>{conversationDetail.title}</Text>
+              {conversationDetail.participants.length > 0 && (
+                <Text style={styles.headerSubtitle}>
+                  @{conversationDetail.participants[0]?.user.username || ''}
+                </Text>
+              )}
+            </View>
+            <TouchableOpacity style={styles.phoneButton}>
+              <Ionicons name="call" size={24} color="#000" />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Chat Content with Gradient Background */}
+        <LinearGradient
+          colors={['#F0F4F8', '#FFFFFF']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={styles.gradientBackground}>
+          <FlatList
+            data={groupedMessages}
+            ref={flatListRef}
+            keyExtractor={(item, index) => 
+              item.type === 'date' ? `date-${item.date}` : `${item.message?.id}-${item.message?.sentAt}-${index}`
+            }
+            renderItem={renderItem}
           onContentSizeChange={() => {
             // Auto scroll khi có nội dung mới
             setTimeout(() => {
@@ -798,58 +861,75 @@ export default function ConversationScreen() {
           key={`messages-${localMessages.length}-${messageUpdateKey}`}
           // Đảm bảo FlatList luôn re-render khi data thay đổi
           maintainVisibleContentPosition={null}
-        />
+          />
+          </LinearGradient>
         
         {/* Typing Indicator */}
         {typingUsers.length > 0 && (
-          <ThemedView style={styles.typingContainer}>
-            <ThemedText style={styles.typingText}>
+          <View style={styles.typingContainer}>
+            <Text style={styles.typingText}>
               {typingUsers.join(', ')} đang gõ...
-            </ThemedText>
-          </ThemedView>
+            </Text>
+          </View>
         )}
         
         {/* Upload Progress */}
         {isUploading && (
-          <ThemedView style={styles.uploadingContainer}>
+          <View style={styles.uploadingContainer}>
             <ActivityIndicator size="small" color="#0a84ff" />
-            <ThemedText style={styles.uploadingText}>Đang tải file lên...</ThemedText>
-          </ThemedView>
+            <Text style={styles.uploadingText}>Đang tải file lên...</Text>
+          </View>
         )}
         
+        {/* Input Area */}
         <View style={styles.composer}>
-          {/* Attachment Button */}
           <TouchableOpacity
-            style={styles.attachButton}
+            style={styles.addButton}
             onPress={showAttachmentMenu}
             disabled={isUploading || sendMessageMutation.isPending}>
-            <Ionicons
-              name="add-circle"
-              size={32}
-              color={isUploading || sendMessageMutation.isPending ? '#ccc' : '#0a84ff'}
-            />
+            <View style={styles.addButtonCircle}>
+              <Ionicons
+                name="add"
+                size={24}
+                color={isUploading || sendMessageMutation.isPending ? '#ccc' : '#000'}
+              />
+            </View>
           </TouchableOpacity>
           
           <TextInput
             style={styles.input}
-            placeholder="Nhập tin nhắn"
+            placeholder="Type a message.."
+            placeholderTextColor="#999"
             value={draft}
             onChangeText={handleTextChange}
+            onSubmitEditing={handleSend}
             editable={!sendMessageMutation.isPending && !isUploading}
             multiline
           />
-          <TouchableOpacity
-            style={[styles.sendButton, !draft.trim() && styles.sendButtonDisabled]}
-            onPress={handleSend}
-            disabled={!draft.trim() || sendMessageMutation.isPending || isUploading}>
-            {sendMessageMutation.isPending ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <ThemedText style={styles.sendButtonText}>Gửi</ThemedText>
-            )}
-          </TouchableOpacity>
+          {draft.trim().length > 0 ? (
+            <TouchableOpacity
+              style={styles.sendButton}
+              onPress={handleSend}
+              disabled={sendMessageMutation.isPending || isUploading}>
+              {sendMessageMutation.isPending ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="send" size={20} color="#fff" />
+              )}
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.micButton}
+              disabled={isUploading || sendMessageMutation.isPending}>
+              <Ionicons
+                name="mic"
+                size={24}
+                color={isUploading || sendMessageMutation.isPending ? '#ccc' : '#000'}
+              />
+            </TouchableOpacity>
+          )}
         </View>
-      </ThemedView>
+      </View>
     </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -858,12 +938,32 @@ export default function ConversationScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+    backgroundColor: '#fff',
   },
   wrapper: {
     flex: 1,
   },
   container: {
     flex: 1,
+    backgroundColor: '#fff',
+  },
+  gradientBackground: {
+    flex: 1,
+  },
+  dateSeparator: {
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  dateBubble: {
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  dateText: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
   },
   offlineIndicator: {
     backgroundColor: '#fff3cd',
@@ -995,18 +1095,81 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   header: {
-    paddingHorizontal: 12,
-    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'ios' ? 44 : 12,
+    paddingBottom: 12,
+    backgroundColor: '#fff',
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(0,0,0,0.1)',
-    gap: 4,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+  },
+  backButton: {
+    padding: 4,
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+    marginHorizontal: 12,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: 'bold',
+    color: '#000',
   },
   headerSubtitle: {
     fontSize: 13,
-    opacity: 0.7,
+    color: '#999',
+    marginTop: 2,
+  },
+  phoneButton: {
+    padding: 4,
+  },
+  composer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(0,0,0,0.1)',
+    gap: 12,
+  },
+  addButton: {
+    padding: 4,
+  },
+  addButtonCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  input: {
+    flex: 1,
+    minHeight: 40,
+    maxHeight: 120,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: '#f5f5f5',
+    fontSize: 16,
+    color: '#000',
+  },
+  micButton: {
+    padding: 4,
+  },
+  sendButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#007AFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 4,
   },
 });

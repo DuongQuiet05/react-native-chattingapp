@@ -3,11 +3,9 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { router } from 'expo-router';
 import { useCallback, useMemo } from 'react';
-import { ActivityIndicator, Image, SectionList, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, SectionList, StyleSheet, TouchableOpacity, View, Text, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { useContacts } from '@/hooks/api/use-contacts';
 import { useFriendRequests } from '@/hooks/api/use-friend-requests';
 import { useFriendRequestsCount } from '@/hooks/api/use-friend-requests-count';
@@ -58,26 +56,23 @@ export default function ContactsScreen() {
         style={styles.requestContainer}
         onPress={() => {
           router.push('/(tabs)/friend-requests' as any);
-        }}>
+        }}
+        activeOpacity={0.7}>
         <Image
-          source={
-            item.sender.avatarUrl
-              ? { uri: item.sender.avatarUrl }
-              : require('@/assets/images/icon.png')
-          }
+          source={{ uri: item.sender.avatarUrl || 'https://i.pravatar.cc/150' }}
           style={styles.avatar}
         />
         
         <View style={styles.requestInfo}>
-          <ThemedText type="subtitle">{item.sender.displayName ?? item.sender.username}</ThemedText>
-          <ThemedText style={styles.itemSubtitle}>
+          <Text style={styles.nameText}>{item.sender.displayName ?? item.sender.username}</Text>
+          <Text style={styles.itemSubtitle}>
             {item.message || 'muốn kết bạn với bạn'}
-          </ThemedText>
-          <ThemedText style={styles.timeText}>{timeAgo}</ThemedText>
+          </Text>
+          <Text style={styles.timeText}>{timeAgo}</Text>
         </View>
 
         <View style={styles.requestBadge}>
-          <Ionicons name="person-add" size={20} color="#ff3b30" />
+          <Ionicons name="person-add" size={18} color="#fff" />
         </View>
       </TouchableOpacity>
     );
@@ -91,39 +86,35 @@ export default function ContactsScreen() {
       <TouchableOpacity 
         style={styles.itemContainer}
         onPress={() => {
-          // Navigate to chat with this contact
-          router.push(`/chat/${item.id}`);
-        }}>
+          router.push(`/(tabs)/profile/${item.id}` as any);
+        }}
+        activeOpacity={0.7}>
         <View style={styles.avatarContainer}>
           <Image
-            source={
-              item.avatarUrl
-                ? { uri: item.avatarUrl }
-                : require('@/assets/images/icon.png')
-            }
+            source={{ uri: item.avatarUrl || 'https://i.pravatar.cc/150' }}
             style={styles.avatar}
           />
           {isOnline && <View style={styles.onlineBadge} />}
         </View>
         
         <View style={styles.contactInfo}>
-          <ThemedText type="subtitle">{item.displayName ?? item.username}</ThemedText>
-          <ThemedText style={styles.itemSubtitle}>
+          <Text style={styles.nameText}>{item.displayName ?? item.username}</Text>
+          <Text style={styles.itemSubtitle}>
             {isOnline ? 'Đang hoạt động' : `Hoạt động ${lastSeenLabel}`}
-          </ThemedText>
+          </Text>
         </View>
 
-        <Ionicons name="chevron-forward" size={20} color="#ccc" />
+        <Ionicons name="chevron-forward" size={20} color="#999" />
       </TouchableOpacity>
     );
   }, []);
 
   const renderSectionHeader = useCallback(({ section }: { section: typeof sections[0] }) => (
     <View style={styles.sectionHeader}>
-      <ThemedText style={styles.sectionTitle}>{section.title}</ThemedText>
+      <Text style={styles.sectionTitle}>{section.title}</Text>
       {section.type === 'requests' && section.data.length > 0 && (
         <TouchableOpacity onPress={() => router.push('/(tabs)/friend-requests' as any)}>
-          <ThemedText style={styles.seeAllText}>Xem tất cả</ThemedText>
+          <Text style={styles.seeAllText}>Xem tất cả</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -144,7 +135,7 @@ export default function ContactsScreen() {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.centered}>
-          <ActivityIndicator />
+          <ActivityIndicator size="large" color="#000" />
         </View>
       </SafeAreaView>
     );
@@ -153,71 +144,76 @@ export default function ContactsScreen() {
   if (isError) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-        <ThemedView style={styles.centered}>
-          <ThemedText>Không thể tải danh sách</ThemedText>
-          <ThemedText style={styles.retry} onPress={handleRefresh}>
-            Thử lại
-          </ThemedText>
-        </ThemedView>
+        <View style={styles.centered}>
+          <Text style={styles.errorText}>Không thể tải danh sách</Text>
+          <TouchableOpacity onPress={handleRefresh}>
+            <Text style={styles.retry}>Thử lại</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-      <ThemedView style={styles.container}>
-        {/* Header with action buttons */}
+      <View style={styles.container}>
+        {/* Header */}
         <View style={styles.header}>
-        <ThemedText type="title">Danh bạ</ThemedText>
-        <View style={styles.headerButtons}>
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={() => router.push('/(tabs)/search-users' as any)}>
-            <Ionicons name="person-add" size={24} color="#0a84ff" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={() => router.push('/(tabs)/friend-requests' as any)}>
-            <Ionicons name="notifications" size={24} color="#0a84ff" />
-            {friendRequestCount !== undefined && friendRequestCount > 0 && (
-              <View style={styles.badge}>
-                <ThemedText style={styles.badgeText}>
-                  {friendRequestCount > 99 ? '99+' : friendRequestCount}
-                </ThemedText>
-              </View>
-            )}
-          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Danh bạ</Text>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => {
+                router.push('/(tabs)/search' as any);
+              }}
+              activeOpacity={0.7}>
+              <Ionicons name="search" size={22} color="#000" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => router.push('/(tabs)/friend-requests' as any)}
+              activeOpacity={0.7}>
+              <Ionicons name="person-add" size={22} color="#000" />
+              {friendRequestCount !== undefined && friendRequestCount > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>
+                    {friendRequestCount > 99 ? '99+' : friendRequestCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
 
-      {sections.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Ionicons name="people-outline" size={64} color="#ccc" />
-          <ThemedText style={styles.emptyTitle}>Chưa có bạn bè nào</ThemedText>
-          <ThemedText style={styles.emptySubtitle}>
-            Tìm kiếm và kết bạn với người khác để bắt đầu trò chuyện
-          </ThemedText>
-          <TouchableOpacity
-            style={styles.addFriendButton}
-            onPress={() => router.push('/(tabs)/search-users' as any)}>
-            <Ionicons name="person-add" size={20} color="#fff" />
-            <ThemedText style={styles.addFriendButtonText}>Tìm bạn bè</ThemedText>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <SectionList
-          sections={sections as any}
-          keyExtractor={(item, index) => `${item.id}-${index}`}
-          renderItem={renderItem}
-          renderSectionHeader={renderSectionHeader}
-          refreshing={isFetching}
-          onRefresh={handleRefresh}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
-          contentContainerStyle={styles.listContent}
-          stickySectionHeadersEnabled={false}
-        />
-      )}
-    </ThemedView>
+        {sections.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="people-outline" size={64} color="#ccc" />
+            <Text style={styles.emptyTitle}>Chưa có bạn bè nào</Text>
+            <Text style={styles.emptySubtitle}>
+              Tìm kiếm và kết bạn với người khác để bắt đầu trò chuyện
+            </Text>
+            <TouchableOpacity
+              style={styles.addFriendButton}
+              onPress={() => router.push('/(tabs)/search' as any)}
+              activeOpacity={0.8}>
+              <Ionicons name="person-add" size={18} color="#fff" />
+              <Text style={styles.addFriendButtonText}>Tìm bạn bè</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <SectionList
+            sections={sections as any}
+            keyExtractor={(item, index) => `${item.id}-${index}`}
+            renderItem={renderItem}
+            renderSectionHeader={renderSectionHeader}
+            refreshing={isFetching}
+            onRefresh={handleRefresh}
+            ItemSeparatorComponent={() => <View style={styles.separator} />}
+            contentContainerStyle={styles.listContent}
+            stickySectionHeadersEnabled={false}
+          />
+        )}
+      </View>
     </SafeAreaView>
   );
 }
@@ -225,42 +221,50 @@ export default function ContactsScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+    backgroundColor: '#fff',
   },
   container: {
     flex: 1,
+    backgroundColor: '#fff',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#e0e0e0',
   },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#000',
+  },
   headerButtons: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
   },
   headerButton: {
-    padding: 8,
+    padding: 4,
     position: 'relative',
   },
   badge: {
     position: 'absolute',
-    top: 2,
-    right: 2,
+    top: 0,
+    right: 0,
     backgroundColor: '#ff3b30',
     borderRadius: 10,
-    minWidth: 20,
-    height: 20,
+    minWidth: 18,
+    height: 18,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 5,
   },
   badgeText: {
     color: '#fff',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
   },
   centered: {
@@ -269,83 +273,115 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 12,
   },
+  errorText: {
+    fontSize: 16,
+    color: '#000',
+  },
   retry: {
-    color: '#0a84ff',
+    color: '#007AFF',
+    fontSize: 16,
+    fontWeight: '600',
     marginTop: 8,
   },
   listContent: {
-    padding: 16,
-    gap: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#f8f8f8',
-    marginTop: 8,
-    marginBottom: 4,
+    marginTop: 16,
+    marginBottom: 8,
   },
   sectionTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
-    opacity: 0.8,
+    color: '#000',
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   seeAllText: {
     fontSize: 14,
-    color: '#0a84ff',
+    color: '#007AFF',
     fontWeight: '500',
   },
   requestContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 59, 48, 0.2)',
-    backgroundColor: 'rgba(255, 59, 48, 0.05)',
-    gap: 12,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#FFE5E5',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   requestInfo: {
     flex: 1,
+    marginLeft: 12,
+  },
+  nameText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 4,
+  },
+  itemSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 2,
   },
   timeText: {
     fontSize: 12,
-    opacity: 0.6,
+    color: '#999',
     marginTop: 4,
   },
   requestBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#fff',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FF3B30',
     justifyContent: 'center',
     alignItems: 'center',
   },
   itemContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(0,0,0,0.08)',
-    gap: 12,
+    padding: 12,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   avatarContainer: {
     position: 'relative',
   },
   avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#e0e0e0',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#f0f0f0',
   },
   onlineBadge: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
+    bottom: 2,
+    right: 2,
     width: 14,
     height: 14,
     borderRadius: 7,
@@ -355,17 +391,10 @@ const styles = StyleSheet.create({
   },
   contactInfo: {
     flex: 1,
-  },
-  itemSubtitle: {
-    opacity: 0.7,
-    fontSize: 14,
-    marginTop: 2,
+    marginLeft: 12,
   },
   separator: {
-    height: 12,
-  },
-  emptyContainer: {
-    flex: 1,
+    height: 0,
   },
   emptyState: {
     flex: 1,
@@ -375,21 +404,24 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   emptyTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
+    color: '#000',
+    marginTop: 16,
   },
   emptySubtitle: {
+    fontSize: 14,
+    color: '#666',
     textAlign: 'center',
-    opacity: 0.7,
     marginBottom: 8,
   },
   addFriendButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0a84ff',
+    backgroundColor: '#000',
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 20,
     gap: 8,
     marginTop: 8,
   },

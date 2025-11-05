@@ -86,11 +86,7 @@ export function UserSearchItem({
           console.log('View profile:', user.id);
         }}>
         <Image
-          source={
-            user.avatarUrl
-              ? { uri: user.avatarUrl }
-              : require('@/assets/images/icon.png')
-          }
+          source={{ uri: user.avatarUrl || 'https://i.pravatar.cc/150' }}
           style={styles.avatar}
         />
 

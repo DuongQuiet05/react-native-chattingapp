@@ -25,6 +25,8 @@ import { router } from 'expo-router';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import * as ImagePicker from 'expo-image-picker';
+import { uploadImage } from '@/lib/api/upload-service';
+import { Platform, ActionSheetIOS } from 'react-native';
 
 dayjs.extend(relativeTime);
 
@@ -85,16 +87,106 @@ export default function ProfileScreen() {
   };
 
   const handlePickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+    try {
+      // Show action sheet to choose between camera and library
+      if (Platform.OS === 'ios') {
+        ActionSheetIOS.showActionSheetWithOptions(
+          {
+            options: ['Hủy', 'Chụp ảnh', 'Chọn từ thư viện'],
+            cancelButtonIndex: 0,
+          },
+          async (buttonIndex) => {
+            if (buttonIndex === 1) {
+              // Camera
+              await pickAndUploadImage('camera');
+            } else if (buttonIndex === 2) {
+              // Library
+              await pickAndUploadImage('library');
+            }
+          }
+        );
+      } else {
+        // Android: Show Alert with options
+        Alert.alert(
+          'Chọn ảnh đại diện',
+          '',
+          [
+            { text: 'Hủy', style: 'cancel' },
+            { text: 'Chụp ảnh', onPress: () => pickAndUploadImage('camera') },
+            { text: 'Chọn từ thư viện', onPress: () => pickAndUploadImage('library') },
+          ],
+          { cancelable: true }
+        );
+      }
+    } catch (error) {
+      console.error('Error showing image picker options:', error);
+    }
+  };
 
-    if (!result.canceled && result.assets[0]) {
-      // TODO: Upload image và cập nhật avatarUrl
-      Alert.alert('Thông báo', 'Tính năng upload ảnh sẽ được tích hợp sau');
+  const pickAndUploadImage = async (source: 'camera' | 'library') => {
+    try {
+      setUploading(true);
+
+      // Request permissions
+      if (source === 'camera') {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Cần quyền truy cập', 'Vui lòng cấp quyền truy cập camera');
+          setUploading(false);
+          return;
+        }
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Cần quyền truy cập', 'Vui lòng cấp quyền truy cập thư viện ảnh');
+          setUploading(false);
+          return;
+        }
+      }
+
+      // Launch image picker
+      const pickerOptions: ImagePicker.ImagePickerOptions = {
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      };
+
+      let result: ImagePicker.ImagePickerResult;
+      if (source === 'camera') {
+        result = await ImagePicker.launchCameraAsync(pickerOptions);
+      } else {
+        result = await ImagePicker.launchImageLibraryAsync(pickerOptions);
+      }
+
+      if (result.canceled || !result.assets[0]) {
+        setUploading(false);
+        return;
+      }
+
+      const asset = result.assets[0];
+      
+      // Upload image to server
+      const uploadResult = await uploadImage({
+        uri: asset.uri,
+        name: asset.fileName || `avatar_${Date.now()}.jpg`,
+        type: asset.mimeType || 'image/jpeg',
+      });
+
+      // Update profile with new avatar URL
+      await updateProfile.mutateAsync({
+        avatarUrl: uploadResult.fileUrl,
+      });
+
+      // Refresh profile data
+      await refetch();
+
+      Alert.alert('Thành công', 'Đã cập nhật ảnh đại diện');
+    } catch (error: any) {
+      console.error('Error uploading avatar:', error);
+      Alert.alert('Lỗi', error.message || 'Không thể cập nhật ảnh đại diện');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -140,16 +232,26 @@ export default function ProfileScreen() {
         <View style={styles.profileCard}>
           {/* Avatar and Stats */}
           <View style={styles.profileHeader}>
-            <TouchableOpacity onPress={handlePickImage} disabled={uploading}>
+            <TouchableOpacity 
+              onPress={handlePickImage} 
+              disabled={uploading}
+              style={styles.avatarContainer}>
               {uploading ? (
-                <ActivityIndicator size="small" color={colors.primary} />
+                <View style={styles.avatar}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                </View>
               ) : (
-                <Image
-                  source={{
-                    uri: profile?.avatarUrl || user?.avatarUrl || 'https://i.pravatar.cc/150',
-                  }}
-                  style={styles.avatar}
-                />
+                <>
+                  <Image
+                    source={{
+                      uri: profile?.avatarUrl || user?.avatarUrl || 'https://i.pravatar.cc/150',
+                    }}
+                    style={styles.avatar}
+                  />
+                  <View style={styles.avatarOverlay}>
+                    <Ionicons name="camera" size={20} color="#fff" />
+                  </View>
+                </>
               )}
             </TouchableOpacity>
             <View style={styles.statsContainer}>
@@ -222,7 +324,7 @@ export default function ProfileScreen() {
                     <View style={styles.postAuthor}>
                       <Image
                         source={{
-                          uri: post.authorAvatar || profile?.avatarUrl || 'https://i.pravatar.cc/150',
+                          uri: post.authorAvatar || 'https://i.pravatar.cc/150',
                         }}
                         style={styles.postAvatar}
                       />
@@ -504,10 +606,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.md,
   },
+  avatarContainer: {
+    position: 'relative',
+  },
   avatar: {
     width: 88,
     height: 88,
     borderRadius: 44,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
   },
   statsContainer: {
     flex: 1,

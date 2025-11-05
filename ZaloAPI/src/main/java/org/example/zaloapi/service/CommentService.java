@@ -28,6 +28,8 @@ public class CommentService {
     private final PostRepository postRepository;
     private final UserRepository userRepository;
     private final FriendshipRepository friendshipRepository;
+    private final NotificationService notificationService;
+    private final PushNotificationService pushNotificationService;
 
     @Transactional
     public CommentDto createComment(Long userId, CreateCommentRequest request) {
@@ -47,16 +49,67 @@ public class CommentService {
         comment.setAuthor(author);
         comment.setContent(request.getContent());
         
+        Comment parentComment = null;
         if (request.getParentCommentId() != null) {
-            Comment parentComment = commentRepository.findById(request.getParentCommentId())
+            parentComment = commentRepository.findById(request.getParentCommentId())
                     .orElseThrow(() -> new RuntimeException("Parent comment not found"));
             comment.setParentComment(parentComment);
         }
 
         comment = commentRepository.save(comment);
         
-        // Create notification for post author
-        // TODO: Implement notification service
+        // Create notification
+        Long postAuthorId = post.getAuthor().getId();
+        
+        if (parentComment != null) {
+            // Reply to comment - notify comment author (not the post author)
+            Long parentCommentAuthorId = parentComment.getAuthor().getId();
+            
+            // Don't notify if replying to own comment
+            if (!parentCommentAuthorId.equals(userId)) {
+                try {
+                    notificationService.createNotification(
+                        parentCommentAuthorId,
+                        org.example.zaloapi.entity.Notification.NotificationType.COMMENT_REPLY,
+                        "@" + author.getUsername() + " replied to your comment",
+                        author.getDisplayName() + " replied to your comment",
+                        post.getId(), // Use postId instead of commentId for navigation
+                        "POST"
+                    );
+                    
+                    pushNotificationService.sendCommentReplyNotification(
+                        parentCommentAuthorId,
+                        author.getDisplayName(),
+                        comment.getId()
+                    );
+                } catch (Exception e) {
+                    System.err.println("⚠️ Failed to create comment reply notification: " + e.getMessage());
+                }
+            }
+        } else {
+            // Comment on post - notify post author
+            // Don't notify if commenting on own post
+            if (!postAuthorId.equals(userId)) {
+                try {
+                    notificationService.createNotification(
+                        postAuthorId,
+                        org.example.zaloapi.entity.Notification.NotificationType.POST_COMMENT,
+                        "@" + author.getUsername() + " commented on your post",
+                        author.getDisplayName() + " commented on your post",
+                        post.getId(),
+                        "POST"
+                    );
+                    
+                    pushNotificationService.sendPostCommentNotification(
+                        postAuthorId,
+                        author.getDisplayName(),
+                        post.getId()
+                    );
+                } catch (Exception e) {
+                    System.err.println("⚠️ Failed to create post comment notification: " + e.getMessage());
+                }
+            }
+        }
         
         return convertToDto(comment);
     }
