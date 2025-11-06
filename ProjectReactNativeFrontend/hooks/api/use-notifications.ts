@@ -6,29 +6,39 @@ import {
   markAllNotificationsAsRead,
   markNotificationAsRead,
 } from '@/lib/api/notifications';
+import { useAuth } from '@/contexts/auth-context';
 
 export function useNotifications(page = 0, size = 20) {
+  const { status } = useAuth();
+  
   return useQuery({
     queryKey: ['notifications', page, size],
     queryFn: () => getNotifications(page, size),
-    refetchInterval: 30000, // Refetch every 30 seconds
+    enabled: status === 'authenticated', // Only fetch when authenticated
+    refetchInterval: status === 'authenticated' ? 30000 : false, // Refetch every 30 seconds
     staleTime: 10000, // Consider data stale after 10 seconds
   });
 }
 
 export function useUnreadNotifications() {
+  const { status } = useAuth();
+  
   return useQuery({
     queryKey: ['unreadNotifications'],
     queryFn: () => getUnreadNotifications(),
-    refetchInterval: 30000, // Refetch every 30 seconds
+    enabled: status === 'authenticated', // Only fetch when authenticated
+    refetchInterval: status === 'authenticated' ? 30000 : false, // Refetch every 30 seconds
   });
 }
 
 export function useUnreadCount() {
+  const { status } = useAuth();
+  
   return useQuery({
     queryKey: ['unreadCount'],
     queryFn: () => getUnreadCount(),
-    refetchInterval: 30000, // Refetch every 30 seconds
+    enabled: status === 'authenticated', // Only fetch when authenticated
+    refetchInterval: status === 'authenticated' ? 30000 : false, // Refetch every 30 seconds
   });
 }
 

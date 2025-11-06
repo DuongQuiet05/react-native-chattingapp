@@ -13,13 +13,17 @@ import { ThemedView } from '@/components/themed-view';
 import { conversationQueryKeys, useConversations } from '@/hooks/api/use-conversations';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import type { ConversationSummary } from '@/lib/api/conversations';
-import { useStomp } from '@/providers/stomp-provider';
+// Temporarily disabled to prevent infinite loops
+// import { useStomp } from '@/providers/stomp-provider';
 import { getFriendsList, type FriendProfile } from '@/lib/api/friends';
 
 export default function ChatsScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { connected, subscribe } = useStomp();
+  // Temporarily disabled to prevent infinite loops
+  // const { connected, subscribe } = useStomp();
+  const connected = false;
+  const subscribe = () => () => {}; // Mock function
   const colorScheme = useColorScheme();
   const {
     data: conversations,

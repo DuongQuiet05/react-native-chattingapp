@@ -25,7 +25,7 @@ export default function LoginScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (status === 'authenticated') {
-    return <Redirect href="/(tabs)" />;
+    return <Redirect href="/(tabs)/feed" />;
   }
 
   if (status === 'loading') {
@@ -47,6 +47,8 @@ export default function LoginScreen() {
 
     try {
       await signIn({ username, password });
+      // Chuyển đến trang Feed sau khi đăng nhập thành công
+      router.replace('/(tabs)/feed');
     } catch (error: any) {
       // Xử lý thông báo lỗi thân thiện với người dùng
       let message = 'Đăng nhập thất bại';

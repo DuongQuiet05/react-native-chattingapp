@@ -9,11 +9,12 @@ export const conversationQueryKeys = {
 };
 
 export function useConversations() {
-  const { user } = useAuth();
+  const { user, status } = useAuth();
   
   return useQuery({
     queryKey: conversationQueryKeys.all,
     queryFn: () => fetchConversations(user?.id),
+    enabled: status === 'authenticated' && !!user, // Only fetch when authenticated and user exists
     staleTime: 30_000,
   });
 }

@@ -68,8 +68,15 @@ export default function ProfileScreen() {
       {
         text: 'Đăng xuất',
         style: 'destructive',
-        onPress: () => {
-          void signOut();
+        onPress: async () => {
+          try {
+            await signOut();
+            // Redirect trực tiếp về intro sau khi logout thành công
+            router.replace('/(auth)/intro-1');
+          } catch (error) {
+            // Nếu có lỗi, chuyển về trang đăng nhập
+            router.replace('/(auth)/login');
+          }
         },
       },
     ]);

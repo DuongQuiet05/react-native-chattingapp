@@ -28,17 +28,36 @@ const StompContext = createContext<StompContextValue | undefined>(undefined);
 export function StompProvider({ children }: { children: ReactNode }) {
   const { status, token } = useAuth();
   const clientRef = useRef<Client | null>(null);
+  const isMountedRef = useRef(true);
+  const isAuthenticatedRef = useRef(false);
   const [connected, setConnected] = useState(false);
+
+  // Update refs when status changes
+  useEffect(() => {
+    isAuthenticatedRef.current = status === 'authenticated' && !!token;
+  }, [status, token]);
 
   useEffect(() => {
     if (status !== 'authenticated' || !token) {
+      // When logging out, deactivate client but DON'T update state to prevent infinite loops
+      // The state will remain false (or be set by the effect when re-authenticating)
       if (clientRef.current) {
-        clientRef.current.deactivate();
-        clientRef.current = null;
+        const currentClient = clientRef.current;
+        clientRef.current = null; // Clear ref first to prevent callbacks from updating state
+        try {
+          currentClient.deactivate();
+        } catch (error) {
+          console.error('❌ [STOMP] Error deactivating:', error);
+        }
       }
-
-      setConnected(false);
+      // DO NOT call setConnected(false) here - it will trigger re-render and cause loop
+      // Only update state when actually connecting
       return;
+    }
+
+    // Only update connected state when transitioning from not authenticated to authenticated
+    if (!isAuthenticatedRef.current) {
+      setConnected(false);
     }
 
     // Chuyển http:// thành ws:// hoặc wss://
@@ -82,25 +101,51 @@ export function StompProvider({ children }: { children: ReactNode }) {
       },
     });
 
+    // Store client reference and status to check if it's still active
+    const currentClientRef = { current: client };
+    const currentStatusRef = { current: status };
+    const isActiveRef = { current: true }; // Ref flag to track if this client instance is still active
+
+    // Helper function to safely update state only if client is still active
+    const safeSetConnected = (value: boolean) => {
+      if (
+        isActiveRef.current &&
+        isAuthenticatedRef.current &&
+        currentStatusRef.current === 'authenticated' &&
+        clientRef.current === client &&
+        currentClientRef.current === client
+      ) {
+        setConnected(value);
+      }
+    };
+
     client.onConnect = (frame) => {
-      console.log('✅ [STOMP] Connected to WebSocket', frame);
-      setConnected(true);
+      if (isActiveRef.current && clientRef.current === client) {
+        console.log('✅ [STOMP] Connected to WebSocket', frame);
+        safeSetConnected(true);
+      }
     };
 
     client.onDisconnect = () => {
-      console.log('❌ [STOMP] Disconnected from WebSocket');
-      setConnected(false);
+      if (isActiveRef.current && clientRef.current === client) {
+        console.log('❌ [STOMP] Disconnected from WebSocket');
+        safeSetConnected(false);
+      }
     };
 
     client.onStompError = (frame) => {
-      console.error('⚠️ [STOMP] Error:', frame.headers['message'], frame.body);
-      console.warn('STOMP error headers:', frame.headers);
-      setConnected(false);
+      if (isActiveRef.current && clientRef.current === client) {
+        console.error('⚠️ [STOMP] Error:', frame.headers['message'], frame.body);
+        console.warn('STOMP error headers:', frame.headers);
+        safeSetConnected(false);
+      }
     };
 
     client.onWebSocketClose = (event) => {
-      console.log('🔌 [STOMP] WebSocket closed', event.code, event.reason);
-      setConnected(false);
+      if (isActiveRef.current && clientRef.current === client) {
+        console.log('🔌 [STOMP] WebSocket closed', event.code, event.reason);
+        safeSetConnected(false);
+      }
     };
 
     try {
@@ -112,15 +157,21 @@ export function StompProvider({ children }: { children: ReactNode }) {
     }
 
     return () => {
-      setConnected(false);
-      if (clientRef.current) {
+      // Mark client as inactive IMMEDIATELY to prevent callbacks from updating state
+      isActiveRef.current = false;
+      currentClientRef.current = null;
+      
+      // Cleanup: deactivate client but DON'T update state
+      // This prevents infinite loops when status changes
+      if (clientRef.current === client) {
+        const currentClient = clientRef.current;
+        clientRef.current = null; // Clear ref first to prevent callbacks from updating state
         try {
-          clientRef.current.deactivate();
+          currentClient.deactivate();
         } catch (error) {
           console.error('❌ [STOMP] Error deactivating:', error);
         }
       }
-      clientRef.current = null;
     };
   }, [status, token]);
 

@@ -11,39 +11,48 @@ export default function IndexScreen() {
   const router = useRouter();
   const [hasSeenIntro, setHasSeenIntro] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const hasRedirected = useRef(false);
+  const hasRedirectedRef = useRef(false);
 
+  // Check intro status on mount only
   useEffect(() => {
+    let mounted = true;
+    
     const checkIntroStatus = async () => {
       try {
         const introSeen = await AsyncStorage.getItem(INTRO_SEEN_KEY);
-        setHasSeenIntro(introSeen === 'true');
+        if (mounted) {
+          setHasSeenIntro(introSeen === 'true');
+          setIsLoading(false);
+        }
       } catch (error) {
         console.error('Error checking intro status:', error);
-        setHasSeenIntro(false);
-      } finally {
-        setIsLoading(false);
+        if (mounted) {
+          setHasSeenIntro(false);
+          setIsLoading(false);
+        }
       }
     };
 
     checkIntroStatus();
+    
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  // Handle redirect logic
+  // Handle redirect - đơn giản hóa logic
   useEffect(() => {
     // Don't redirect if still loading or already redirected
-    if (isLoading || hasSeenIntro === null || status === 'loading' || hasRedirected.current) {
+    if (isLoading || hasSeenIntro === null || status === 'loading' || hasRedirectedRef.current) {
       return;
     }
 
     let redirectHref: string | null = null;
 
-    // If hasn't seen intro, redirect to intro
+    // Determine redirect destination
     if (hasSeenIntro === false) {
       redirectHref = '/(auth)/intro-1';
-    }
-    // If has seen intro
-    else if (hasSeenIntro === true) {
+    } else if (hasSeenIntro === true) {
       if (status === 'authenticated') {
         redirectHref = '/(tabs)/feed';
       } else {
@@ -56,14 +65,27 @@ export default function IndexScreen() {
       redirectHref = '/(auth)/intro-1';
     }
 
-    // Perform redirect once
-    if (redirectHref && !hasRedirected.current) {
-      hasRedirected.current = true;
-      router.replace(redirectHref as any);
-    }
-  }, [isLoading, hasSeenIntro, status, router]);
+    // Only redirect once
+    if (redirectHref && !hasRedirectedRef.current) {
+      hasRedirectedRef.current = true;
+      
+      // Use setTimeout to ensure navigation happens after state updates
+      const timeoutId = setTimeout(() => {
+        try {
+          router.replace(redirectHref as any);
+        } catch (error) {
+          console.error('Navigation error:', error);
+          // Reset flag on error to allow retry
+          hasRedirectedRef.current = false;
+        }
+      }, 100);
 
-  // Show loading state
+      return () => clearTimeout(timeoutId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, hasSeenIntro, status]);
+
+  // Show loading state while checking
   return (
     <View style={styles.container}>
       <ActivityIndicator size="large" />

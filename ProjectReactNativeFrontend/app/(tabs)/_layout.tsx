@@ -7,16 +7,50 @@ import { useUnreadCount } from '@/hooks/api/use-notifications';
 import { useUnreadMessagesCount } from '@/hooks/api/use-unread-messages-count';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
-import { Redirect, Tabs } from 'expo-router';
-import React from 'react';
+import { Tabs, useRouter } from 'expo-router';
+import React, { useEffect, useRef } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 export default function TabLayout() {
   const { status } = useAuth();
+  const router = useRouter();
   const colorScheme = useColorScheme();
-  const { data: friendRequestCount } = useFriendRequestsCount();
-  const { data: unreadCount } = useUnreadCount();
-  const { data: unreadMessagesCount } = useUnreadMessagesCount();
+  
+  // Only fetch data when authenticated to prevent API calls during logout
+  // Use enabled option to disable queries when not authenticated
+  const friendRequestCountQuery = useFriendRequestsCount();
+  const unreadCountQuery = useUnreadCount();
+  const unreadMessagesCountQuery = useUnreadMessagesCount();
+  
+  // Only use data when authenticated, and queries are disabled when not authenticated
+  const friendRequestCount = status === 'authenticated' ? friendRequestCountQuery.data : undefined;
+  const unreadCount = status === 'authenticated' ? unreadCountQuery.data : undefined;
+  const unreadMessagesCount = status === 'authenticated' ? unreadMessagesCountQuery.data : undefined;
+  
+  const hasRedirectedRef = useRef(false);
+  const previousStatusRef = useRef<'loading' | 'unauthenticated' | 'authenticated' | undefined>(undefined);
+
+  // Handle redirect when status changes from authenticated to unauthenticated
+  useEffect(() => {
+    // Only redirect when transitioning from authenticated to unauthenticated
+    const wasAuthenticated = previousStatusRef.current === 'authenticated';
+    const isNowUnauthenticated = status === 'unauthenticated';
+
+    if (wasAuthenticated && isNowUnauthenticated && !hasRedirectedRef.current) {
+      hasRedirectedRef.current = true;
+      // Redirect về intro khi logout (intro key đã bị xóa trong signOut)
+      router.replace('/(auth)/intro-1');
+    }
+
+    // Reset redirect flag when status becomes authenticated again
+    if (status === 'authenticated') {
+      hasRedirectedRef.current = false;
+    }
+
+    // Update previous status
+    previousStatusRef.current = status;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]); // Don't include router to prevent re-runs
 
   if (status === 'loading') {
     return (
@@ -26,8 +60,15 @@ export default function TabLayout() {
     );
   }
 
+  // Don't use Redirect component directly - it causes infinite loops
+  // Use useEffect with router.replace instead
+  // Show loading briefly while redirecting happens
   if (status !== 'authenticated') {
-    return <Redirect href="/" />;
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator />
+      </View>
+    );
   }
 
   return (

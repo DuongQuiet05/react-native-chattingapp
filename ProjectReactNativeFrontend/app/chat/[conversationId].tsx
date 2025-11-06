@@ -32,7 +32,8 @@ import { useFileUpload } from '@/hooks/use-file-upload';
 import type { ConversationDetail, ConversationSummary } from '@/lib/api/conversations';
 import type { MessageDto } from '@/lib/api/messages';
 import { markConversationAsRead } from '@/lib/api/messages';
-import { useStomp } from '@/providers/stomp-provider';
+// Temporarily disabled to prevent infinite loops
+// import { useStomp } from '@/providers/stomp-provider';
 export default function ConversationScreen() {
   const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
   const numericId = useMemo(() => Number(conversationId), [conversationId]);
@@ -43,7 +44,12 @@ export default function ConversationScreen() {
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const queryClient = useQueryClient();
-  const { connected, subscribe, sendMessage: sendMessageWS, sendTypingIndicator } = useStomp();
+  // Temporarily disabled to prevent infinite loops
+  // const { connected, subscribe, sendMessage: sendMessageWS, sendTypingIndicator } = useStomp();
+  const connected = false;
+  const subscribe = () => () => {}; // Mock function
+  const sendMessageWS = () => {}; // Mock function
+  const sendTypingIndicator = () => {}; // Mock function
   // Thêm state để force re-render khi có message mới
   const [messageUpdateKey, setMessageUpdateKey] = useState(0);
   // Thêm local state để lưu messages và sync với React Query

@@ -1,7 +1,8 @@
 import { AuthProvider } from "@/contexts/auth-context";
 import { ReactQueryProvider } from "@/providers/react-query-provider";
-import { StompProvider } from "@/providers/stomp-provider";
-import { NotificationProvider } from "@/providers/notification-provider";
+// Temporarily disabled to prevent infinite loops during logout
+// import { StompProvider } from "@/providers/stomp-provider";
+// import { NotificationProvider } from "@/providers/notification-provider";
 import {
   DarkTheme,
   DefaultTheme,
@@ -10,11 +11,18 @@ import {
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
-import { Component, type ReactNode } from "react";
+import { Component, useMemo, type ReactNode } from "react";
 import { View, Text, StyleSheet } from "react-native";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+// Memoize screen options to prevent re-renders
+const INDEX_SCREEN_OPTIONS = { headerShown: false };
+const AUTH_SCREEN_OPTIONS = { headerShown: false };
+const TABS_SCREEN_OPTIONS = { headerShown: false };
+const CHAT_SCREEN_OPTIONS = { headerShown: false };
+const MODAL_SCREEN_OPTIONS = { presentation: "modal" as const, title: "Modal" };
 
 export const unstable_settings = {
   anchor: "index",
@@ -59,27 +67,31 @@ class ErrorBoundary extends Component<
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
+  // Memoize theme to prevent re-renders
+  const theme = useMemo(
+    () => (colorScheme === "dark" ? DarkTheme : DefaultTheme),
+    [colorScheme]
+  );
+
   return (
     <ErrorBoundary>
-      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+      <ThemeProvider value={theme}>
         <SafeAreaView style={{ flex: 1 }}>
           <ReactQueryProvider>
             <AuthProvider>
-              <NotificationProvider>
-                <StompProvider>
+              {/* Temporarily disabled to prevent infinite loops during logout */}
+              {/* <NotificationProvider>
+                <StompProvider> */}
                   <Stack>
-                    <Stack.Screen name="index" options={{ headerShown: false }} />
-                    <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-                    <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                    <Stack.Screen name="chat" options={{ headerShown: false }} />
-                    <Stack.Screen
-                      name="modal"
-                      options={{ presentation: "modal", title: "Modal" }}
-                    />
+                    <Stack.Screen name="index" options={INDEX_SCREEN_OPTIONS} />
+                    <Stack.Screen name="(auth)" options={AUTH_SCREEN_OPTIONS} />
+                    <Stack.Screen name="(tabs)" options={TABS_SCREEN_OPTIONS} />
+                    <Stack.Screen name="chat" options={CHAT_SCREEN_OPTIONS} />
+                    <Stack.Screen name="modal" options={MODAL_SCREEN_OPTIONS} />
                   </Stack>
                   <StatusBar style="auto" />
-                </StompProvider>
-              </NotificationProvider>
+                {/* </StompProvider>
+              </NotificationProvider> */}
             </AuthProvider>
           </ReactQueryProvider>
         </SafeAreaView>

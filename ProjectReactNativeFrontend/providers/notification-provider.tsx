@@ -71,9 +71,16 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // Use refs to track previous values and prevent multiple calls
+  const previousStatusRef = useRef<'loading' | 'unauthenticated' | 'authenticated' | undefined>(undefined);
+  const hasRegisteredRef = useRef(false);
+  const hasUnregisteredRef = useRef(false);
+
   // Register device token with backend when authenticated
   useEffect(() => {
-    if (status === 'authenticated' && user && expoPushToken) {
+    if (status === 'authenticated' && user?.id && expoPushToken && !hasRegisteredRef.current) {
+      hasRegisteredRef.current = true;
+      hasUnregisteredRef.current = false;
       const deviceId = getDeviceId();
       const deviceType = Platform.OS === 'ios' ? 'IOS' : Platform.OS === 'android' ? 'ANDROID' : 'WEB';
       
@@ -88,18 +95,39 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         },
         onError: (error) => {
           console.error('❌ Failed to register device:', error);
+          hasRegisteredRef.current = false; // Allow retry on error
+        },
+      });
+    } else if (status !== 'authenticated') {
+      // Reset flags when not authenticated
+      hasRegisteredRef.current = false;
+    }
+  }, [status, user?.id, expoPushToken, registerDevice]);
+
+  // Unregister device on logout (separate effect to avoid infinite loops)
+  useEffect(() => {
+    // Only unregister when transitioning from authenticated to unauthenticated
+    const wasAuthenticated = previousStatusRef.current === 'authenticated';
+    const isNowUnauthenticated = status !== 'authenticated';
+
+    if (wasAuthenticated && isNowUnauthenticated && expoPushToken && !hasUnregisteredRef.current) {
+      hasUnregisteredRef.current = true;
+      hasRegisteredRef.current = false; // Reset registration flag
+      const deviceId = getDeviceId();
+      unregisterDevice.mutate(deviceId, {
+        onSuccess: () => {
+          console.log('✅ Device unregistered');
+        },
+        onError: (error) => {
+          console.error('❌ Failed to unregister device:', error);
+          hasUnregisteredRef.current = false; // Allow retry on error
         },
       });
     }
 
-    // Unregister on logout
-    return () => {
-      if (status !== 'authenticated' && expoPushToken) {
-        const deviceId = getDeviceId();
-        unregisterDevice.mutate(deviceId);
-      }
-    };
-  }, [status, user, expoPushToken]);
+    // Update the ref for next render
+    previousStatusRef.current = status;
+  }, [status, expoPushToken, unregisterDevice]);
 
   return (
     <NotificationContext.Provider value={{ expoPushToken, notification }}>
