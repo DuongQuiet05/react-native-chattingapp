@@ -62,9 +62,10 @@ public class PostService {
         // Get posts from friends and public posts, excluding blocked users
         Page<Post> posts = postRepository.findVisiblePostsForUser(userId, pageable);
         
-        // Filter out blocked users' posts
+        // Filter out blocked users' posts and hidden posts
         List<Post> filteredPosts = posts.getContent().stream()
                 .filter(p -> !blockedIds.contains(p.getAuthor().getId()))
+                .filter(p -> p.getIsHidden() == null || !p.getIsHidden()) // Exclude hidden posts
                 .collect(Collectors.toList());
         
         return new PageImpl<>(
@@ -81,13 +82,37 @@ public class PostService {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Page<Post> posts = postRepository.findByAuthorIdOrderByCreatedAtDesc(authorId, pageable);
         
-        return posts.map(post -> convertToDto(post, currentUserId));
+        // Filter out hidden posts (unless viewing own posts - admin can see hidden posts in admin panel)
+        // For regular users, hide posts that are marked as hidden
+        List<Post> visiblePosts = posts.getContent().stream()
+                .filter(post -> {
+                    // If viewing own posts, show all posts (including hidden ones)
+                    // Otherwise, filter out hidden posts
+                    if (authorId.equals(currentUserId)) {
+                        return true; // User can see their own hidden posts
+                    }
+                    return post.getIsHidden() == null || !post.getIsHidden();
+                })
+                .collect(Collectors.toList());
+        
+        return new PageImpl<>(
+                visiblePosts.stream()
+                        .map(post -> convertToDto(post, currentUserId))
+                        .collect(Collectors.toList()),
+                posts.getPageable(),
+                visiblePosts.size()
+        );
     }
 
     @Transactional(readOnly = true)
     public PostDto getPostById(Long postId, Long userId) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new RuntimeException("Post not found"));
+        
+        // Check if post is hidden (unless viewing own post)
+        if (post.getIsHidden() != null && post.getIsHidden() && !post.getAuthor().getId().equals(userId)) {
+            throw new RuntimeException("Post not found");
+        }
         
         // Check privacy
         if (!canViewPost(post, userId)) {
@@ -150,6 +175,7 @@ public class PostService {
                 .commentCount(commentCount)
                 .reactionCount(reactionCount)
                 .userReaction(userReaction)
+                .isHidden(post.getIsHidden())
                 .createdAt(post.getCreatedAt())
                 .updatedAt(post.getUpdatedAt())
                 .build();

@@ -99,14 +99,16 @@ public class UserService {
     }
 
     private UserDto convertToDto(User user) {
-        return new UserDto(
-                user.getId(),
-                user.getUsername(),
-                user.getDisplayName(),
-                user.getAvatarUrl(),
-                user.getStatus().name(),
-                user.getLastSeen()
-        );
+        UserDto dto = new UserDto();
+        dto.setId(user.getId());
+        dto.setUsername(user.getUsername());
+        dto.setDisplayName(user.getDisplayName());
+        dto.setAvatarUrl(user.getAvatarUrl());
+        dto.setStatus(user.getStatus().name());
+        dto.setRole(user.getRole().name());
+        dto.setIsBlocked(user.getIsBlocked());
+        dto.setLastSeen(user.getLastSeen());
+        return dto;
     }
 
     private UserProfileDto convertToProfileDto(User user) {

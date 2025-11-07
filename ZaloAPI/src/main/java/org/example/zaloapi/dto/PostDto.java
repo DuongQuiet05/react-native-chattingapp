@@ -24,6 +24,7 @@ public class PostDto {
     private long commentCount;
     private long reactionCount;
     private String userReaction; // Current user's reaction type, null if none
+    private Boolean isHidden;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

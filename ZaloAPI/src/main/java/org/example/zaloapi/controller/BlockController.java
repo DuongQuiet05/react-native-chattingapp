@@ -4,12 +4,14 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.example.zaloapi.dto.BlockedUserDto;
 import org.example.zaloapi.security.UserPrincipal;
 import org.example.zaloapi.service.BlockService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -48,12 +50,16 @@ public class BlockController {
     }
 
     @GetMapping
-    @Operation(summary = "Get blocked users", description = "Get list of blocked user IDs")
+    @Operation(summary = "Get blocked users", description = "Get list of blocked users with full information")
     public ResponseEntity<Map<String, Object>> getBlockedUsers(
             @AuthenticationPrincipal UserPrincipal currentUser) {
         
+        List<BlockedUserDto> blockedUsers = blockService.getBlockedUsers(currentUser.getId());
+        List<Long> blockedUserIds = blockService.getBlockedUserIds(currentUser.getId());
+        
         return ResponseEntity.ok(Map.of(
-                "blockedUserIds", blockService.getBlockedUserIds(currentUser.getId())
+                "blockedUsers", blockedUsers,
+                "blockedUserIds", blockedUserIds
         ));
     }
 

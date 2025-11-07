@@ -23,6 +23,7 @@ public class ConversationService {
     private final UserRepository userRepository;
     private final MessageRepository messageRepository;
     private final MessageReceiptRepository messageReceiptRepository;
+    private final BlockService blockService;
 
     @Transactional
     public ConversationDto createConversation(CreateConversationRequest request, Long creatorId) {
@@ -49,6 +50,11 @@ public class ConversationService {
         // Add other participants
         for (Long userId : request.getParticipantIds()) {
             if (!userId.equals(creatorId)) {
+                // Check if users are blocked (either way)
+                if (blockService.isBlockedEitherWay(creatorId, userId)) {
+                    throw new RuntimeException("Cannot create conversation with blocked user");
+                }
+
                 User user = userRepository.findById(userId)
                         .orElseThrow(() -> new RuntimeException("User not found: " + userId));
 
@@ -130,14 +136,18 @@ public class ConversationService {
         List<ConversationParticipant> participants = participantRepository.findByConversationId(conversation.getId());
 
         List<UserDto> participantDtos = participants.stream()
-                .map(p -> new UserDto(
-                        p.getUser().getId(),
-                        p.getUser().getUsername(),
-                        p.getUser().getDisplayName(),
-                        p.getUser().getAvatarUrl(),
-                        p.getUser().getStatus().name(),
-                        p.getUser().getLastSeen()
-                ))
+                .map(p -> {
+                    UserDto dto = new UserDto();
+                    dto.setId(p.getUser().getId());
+                    dto.setUsername(p.getUser().getUsername());
+                    dto.setDisplayName(p.getUser().getDisplayName());
+                    dto.setAvatarUrl(p.getUser().getAvatarUrl());
+                    dto.setStatus(p.getUser().getStatus().name());
+                    dto.setRole(p.getUser().getRole().name());
+                    dto.setIsBlocked(p.getUser().getIsBlocked());
+                    dto.setLastSeen(p.getUser().getLastSeen());
+                    return dto;
+                })
                 .collect(Collectors.toList());
 
         // Get last message

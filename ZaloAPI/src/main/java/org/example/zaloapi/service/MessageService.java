@@ -28,6 +28,7 @@ public class MessageService {
     private final PushNotificationService pushNotificationService;
     private final NotificationService notificationService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final BlockService blockService;
 
     @Transactional
     public MessageDto sendMessage(SendMessageRequest request, Long senderId) {
@@ -40,6 +41,18 @@ public class MessageService {
         // Check if user is participant
         if (!participantRepository.existsByConversationIdAndUserId(conversation.getId(), senderId)) {
             throw new RuntimeException("User is not a participant of this conversation");
+        }
+
+        // Check if sender is blocked by any participant (for private conversations)
+        if (conversation.getType() == Conversation.ConversationType.PRIVATE) {
+            List<ConversationParticipant> participants = participantRepository.findByConversationId(conversation.getId());
+            for (ConversationParticipant participant : participants) {
+                if (!participant.getUser().getId().equals(senderId)) {
+                    if (blockService.isBlockedEitherWay(senderId, participant.getUser().getId())) {
+                        throw new RuntimeException("Cannot send message to blocked user");
+                    }
+                }
+            }
         }
 
         Message message = new Message();

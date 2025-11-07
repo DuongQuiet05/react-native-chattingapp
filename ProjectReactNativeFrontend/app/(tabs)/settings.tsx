@@ -212,8 +212,16 @@ export default function ProfileScreen() {
     );
   }
 
-  const posts = postsData?.content || [];
-  const postCount = postsData?.totalElements || 0;
+  // Filter out hidden posts (user can see their own hidden posts, but not others')
+  const posts = (postsData?.content || []).filter((post) => {
+    // If viewing own profile, show all posts (including hidden ones)
+    // Otherwise, filter out hidden posts
+    if (user?.id && post.authorId === user.id) {
+      return true; // User can see their own hidden posts
+    }
+    return !post.isHidden; // Hide posts from other users that are marked as hidden
+  });
+  const postCount = posts.length; // Use filtered count
   const followersCount = 2800; // Mock data - có thể thay bằng API sau
   const followingCount = friends?.length || 892;
 

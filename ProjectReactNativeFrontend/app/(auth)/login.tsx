@@ -50,40 +50,84 @@ export default function LoginScreen() {
       // Chuyển đến trang Feed sau khi đăng nhập thành công
       router.replace('/(tabs)/feed');
     } catch (error: any) {
-      // Xử lý thông báo lỗi thân thiện với người dùng
-      let message = 'Đăng nhập thất bại';
+      // Extract error message from different sources
+      let errorMessage = '';
+      let errorDetails: any = null;
       
-      // Kiểm tra status code từ error
-      if (error?.status === 401) {
-        // Lỗi 401 - Thông tin đăng nhập không đúng
-        message = 'Tên đăng nhập hoặc mật khẩu không chính xác';
-      } else if (error?.status === 0) {
-        // Lỗi kết nối
-        message = 'Không thể kết nối tới máy chủ';
-      } else if (error?.message) {
-        // Kiểm tra các trường hợp đặc biệt khác
-        if (error.message.includes('not verified') || error.message.includes('chưa xác thực')) {
-          Alert.alert(
-            'Chưa xác thực',
-            'Số điện thoại chưa được xác thực. Vui lòng xác thực trước khi đăng nhập.',
-            [
-              {
-                text: 'Đóng',
-                style: 'cancel',
-              },
-            ]
-          );
-          setIsSubmitting(false);
-          return;
+      // Try to get message from error.details (response body) - this is where backend error message is
+      if (error?.details) {
+        errorDetails = error.details;
+        if (typeof errorDetails === 'string') {
+          try {
+            errorDetails = JSON.parse(errorDetails);
+          } catch {
+            // Not JSON, use as is
+          }
         }
-        
-        // Nếu có message cụ thể từ server (không phải lỗi 401)
-        if (error.status !== 401 && !error.message.match(/^\d{3}/)) {
-          message = error.message;
+        // Backend returns ErrorResponse with 'message' field
+        if (errorDetails?.message) {
+          errorMessage = errorDetails.message;
+        } else if (errorDetails?.error) {
+          errorMessage = errorDetails.error;
         }
       }
+      
+      // Fallback to error.message (which should already contain the message from http-client)
+      if (!errorMessage && error?.message) {
+        errorMessage = error.message;
+      }
+      
+      // Kiểm tra nếu tài khoản bị chặn (check multiple patterns)
+      const blockedPatterns = ['bị chặn', 'bị khóa', 'blocked', 'khóa', 'chặn', 'đã bị'];
+      const isBlocked = blockedPatterns.some(pattern => 
+        errorMessage.toLowerCase().includes(pattern.toLowerCase())
+      );
+      
+      if (isBlocked) {
+        Alert.alert(
+          'Tài khoản đã bị khóa',
+          'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ với ADMIN để được hỗ trợ.',
+          [
+            {
+              text: 'Đóng',
+              style: 'cancel',
+            },
+          ]
+        );
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Kiểm tra các trường hợp đặc biệt khác
+      if (errorMessage.includes('not verified') || errorMessage.includes('chưa xác thực')) {
+        Alert.alert(
+          'Chưa xác thực',
+          'Số điện thoại chưa được xác thực. Vui lòng xác thực trước khi đăng nhập.',
+          [
+            {
+              text: 'Đóng',
+              style: 'cancel',
+            },
+          ]
+        );
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Xử lý các lỗi khác
+      let displayMessage = 'Đăng nhập thất bại';
+      
+      if (error?.status === 401) {
+        displayMessage = 'Tên đăng nhập hoặc mật khẩu không chính xác';
+      } else if (error?.status === 0) {
+        // Network error - server không thể kết nối
+        displayMessage = 'Không thể kết nối tới máy chủ. Vui lòng kiểm tra:\n- Kết nối mạng\n- Backend đang chạy\n- Địa chỉ API đúng';
+      } else if (errorMessage && !errorMessage.match(/^\d{3}\s/)) {
+        // Use error message if it's not just a status code
+        displayMessage = errorMessage;
+      }
 
-      setErrorMessage(message);
+      setErrorMessage(displayMessage);
       setIsSubmitting(false);
     }
   };

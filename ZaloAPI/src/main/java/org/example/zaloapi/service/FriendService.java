@@ -23,6 +23,7 @@ public class FriendService {
     private final UserPrivacySettingsRepository privacySettingsRepository;
     private final PushNotificationService pushNotificationService;
     private final NotificationService notificationService;
+    private final BlockService blockService;
 
     /**
      * Tìm kiếm user theo số điện thoại, username hoặc display name
@@ -70,8 +71,13 @@ public class FriendService {
                     .toList());
         }
 
+        // Filter out blocked users (both ways)
+        List<User> filteredResults = results.stream()
+                .filter(user -> !blockService.isBlockedEitherWay(currentUserId, user.getId()))
+                .collect(Collectors.toList());
+
         // Chuyển đổi sang DTO với relationship status
-        return results.stream()
+        return filteredResults.stream()
                 .map(user -> mapToUserSearchDto(user, currentUserId))
                 .collect(Collectors.toList());
     }

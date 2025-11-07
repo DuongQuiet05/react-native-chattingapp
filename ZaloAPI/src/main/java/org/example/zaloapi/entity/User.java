@@ -51,6 +51,13 @@ public class User {
     @Column(nullable = false)
     private UserStatus status = UserStatus.OFFLINE;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private UserRole role = UserRole.USER;
+
+    @Column(name = "is_blocked", nullable = false)
+    private Boolean isBlocked = false;
+
     @Column(name = "last_seen")
     private LocalDateTime lastSeen;
 
@@ -64,6 +71,10 @@ public class User {
 
     public enum UserStatus {
         ONLINE, OFFLINE, AWAY
+    }
+
+    public enum UserRole {
+        USER, ADMIN
     }
 }
 

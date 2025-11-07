@@ -48,6 +48,9 @@ public class Post {
     @Column(name = "location")
     private String location;
 
+    @Column(name = "is_hidden", nullable = false)
+    private Boolean isHidden = false;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

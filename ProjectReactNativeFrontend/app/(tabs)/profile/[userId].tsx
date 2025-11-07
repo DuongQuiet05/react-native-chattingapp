@@ -9,6 +9,8 @@ import {
   RefreshControl,
   ActivityIndicator,
   Dimensions,
+  Alert,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -20,6 +22,7 @@ import { useUserProfile } from '@/hooks/api/use-profile';
 import { useUserPosts } from '@/hooks/api/use-posts';
 import { searchUsers, type RelationshipStatus, getFriendsList, type FriendProfile } from '@/lib/api/friends';
 import { SendFriendRequestModal } from '@/components/send-friend-request-modal';
+import { useCheckBlocked, useBlockUser, useUnblockUser } from '@/hooks/api/use-blocks';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -108,8 +111,15 @@ export default function UserProfileScreen() {
   const [mutualFriends, setMutualFriends] = useState<FriendProfile[]>([]);
   const [loadingRelationship, setLoadingRelationship] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
   
   const [activeTab, setActiveTab] = useState<'Activity' | 'Post' | 'Tagged' | 'Media'>('Activity');
+
+  // Block functionality
+  const { data: checkBlockedData } = useCheckBlocked(userIdNum);
+  const isBlocked = checkBlockedData?.isBlocked || false;
+  const blockUserMutation = useBlockUser();
+  const unblockUserMutation = useUnblockUser();
 
   // Load relationship status and mutual friends
   useEffect(() => {
@@ -164,6 +174,57 @@ export default function UserProfileScreen() {
     }
   };
 
+  const handleBlock = async () => {
+    setMenuVisible(false);
+    Alert.alert(
+      'Chặn người dùng',
+      `Bạn có chắc chắn muốn chặn ${profile?.displayName || profile?.username}? Người này sẽ không thể nhắn tin hoặc xem nội dung của bạn.`,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Chặn',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await blockUserMutation.mutateAsync(userIdNum);
+              Alert.alert('Thành công', 'Đã chặn người dùng');
+              router.back();
+            } catch (error: any) {
+              Alert.alert('Lỗi', error.message || 'Không thể chặn người dùng');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleUnblock = async () => {
+    setMenuVisible(false);
+    Alert.alert(
+      'Bỏ chặn người dùng',
+      `Bạn có chắc chắn muốn bỏ chặn ${profile?.displayName || profile?.username}?`,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Bỏ chặn',
+          onPress: async () => {
+            try {
+              await unblockUserMutation.mutateAsync(userIdNum);
+              Alert.alert('Thành công', 'Đã bỏ chặn người dùng');
+            } catch (error: any) {
+              Alert.alert('Lỗi', error.message || 'Không thể bỏ chặn người dùng');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleReport = () => {
+    setMenuVisible(false);
+    Alert.alert('Báo cáo', 'Tính năng báo cáo sẽ được triển khai trong tương lai');
+  };
+
   const formatNumber = (num: number) => {
     if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
     return num.toString();
@@ -192,26 +253,36 @@ export default function UserProfileScreen() {
 
     return (
       <View style={styles.actionButtons}>
-        {relationshipStatus === 'FRIEND' ? (
-          <View style={[styles.actionButton, styles.friendButton]}>
-            <Text style={styles.friendButtonText}>Bạn bè</Text>
-          </View>
-        ) : relationshipStatus === 'REQUEST_SENT' ? (
-          <View style={[styles.actionButton, styles.disabledButton]}>
-            <Text style={styles.disabledButtonText}>Đã gửi</Text>
-          </View>
-        ) : (
+        {isBlocked ? (
           <TouchableOpacity
-            style={[styles.actionButton, styles.followButton]}
-            onPress={handleSendFriendRequest}>
-            <Text style={styles.followButtonText}>Kết bạn</Text>
+            style={[styles.actionButton, styles.unblockButton]}
+            onPress={handleUnblock}>
+            <Text style={styles.unblockButtonText}>Bỏ chặn</Text>
           </TouchableOpacity>
+        ) : (
+          <>
+            {relationshipStatus === 'FRIEND' ? (
+              <View style={[styles.actionButton, styles.friendButton]}>
+                <Text style={styles.friendButtonText}>Bạn bè</Text>
+              </View>
+            ) : relationshipStatus === 'REQUEST_SENT' ? (
+              <View style={[styles.actionButton, styles.disabledButton]}>
+                <Text style={styles.disabledButtonText}>Đã gửi</Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={[styles.actionButton, styles.followButton]}
+                onPress={handleSendFriendRequest}>
+                <Text style={styles.followButtonText}>Kết bạn</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={[styles.actionButton, styles.messageButton]}
+              onPress={() => router.push(`/chat/${userIdNum}` as any)}>
+              <Text style={styles.messageButtonText}>Message</Text>
+            </TouchableOpacity>
+          </>
         )}
-        <TouchableOpacity
-          style={[styles.actionButton, styles.messageButton]}
-          onPress={() => router.push(`/chat/${userIdNum}` as any)}>
-          <Text style={styles.messageButtonText}>Message</Text>
-        </TouchableOpacity>
       </View>
     );
   };
@@ -251,9 +322,12 @@ export default function UserProfileScreen() {
           <Ionicons name="arrow-back" size={24} color="#000" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{profile.username}</Text>
-        <TouchableOpacity>
-          <Ionicons name="ellipsis-vertical" size={24} color="#000" />
-        </TouchableOpacity>
+        {!isOwnProfile && (
+          <TouchableOpacity onPress={() => setMenuVisible(true)}>
+            <Ionicons name="ellipsis-vertical" size={24} color="#000" />
+          </TouchableOpacity>
+        )}
+        {isOwnProfile && <View style={{ width: 24 }} />}
       </View>
 
       <ScrollView
@@ -367,6 +441,38 @@ export default function UserProfileScreen() {
           onSuccess={handleModalSuccess}
         />
       )}
+
+      {/* Menu Modal */}
+      <Modal
+        visible={menuVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setMenuVisible(false)}>
+        <TouchableOpacity
+          style={styles.menuOverlay}
+          activeOpacity={1}
+          onPress={() => setMenuVisible(false)}>
+          <View style={styles.menuContainer}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={handleBlock}>
+              <Ionicons name="ban" size={24} color="#ff3b30" />
+              <Text style={styles.menuItemText}>Chặn người dùng</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={handleReport}>
+              <Ionicons name="flag" size={24} color="#ff9500" />
+              <Text style={styles.menuItemText}>Báo cáo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.menuItem, styles.menuItemCancel]}
+              onPress={() => setMenuVisible(false)}>
+              <Text style={styles.menuItemCancelText}>Hủy</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -661,5 +767,48 @@ const styles = StyleSheet.create({
   statText: {
     fontSize: 14,
     color: '#666',
+  },
+  unblockButton: {
+    backgroundColor: '#ff3b30',
+  },
+  unblockButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  menuContainer: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 40,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#e0e0e0',
+  },
+  menuItemText: {
+    fontSize: 16,
+    marginLeft: 12,
+    color: '#000',
+  },
+  menuItemCancel: {
+    justifyContent: 'center',
+    borderBottomWidth: 0,
+    marginTop: 8,
+  },
+  menuItemCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ff3b30',
+    textAlign: 'center',
   },
 });

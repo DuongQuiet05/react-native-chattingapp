@@ -153,6 +153,11 @@ public class AuthService {
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
+        // Check if user is blocked
+        if (user.getIsBlocked() != null && user.getIsBlocked()) {
+            throw new RuntimeException("Tài khoản của bạn đã bị khóa. Vui lòng liên hệ với ADMIN để được hỗ trợ.");
+        }
+
         // Check if phone is verified
         if (!user.getIsPhoneVerified()) {
             throw new RuntimeException("Phone number not verified. Please verify your phone number first.");

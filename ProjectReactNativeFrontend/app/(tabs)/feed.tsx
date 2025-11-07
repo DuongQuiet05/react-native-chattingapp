@@ -447,9 +447,11 @@ export default function FeedScreen() {
           </View>
         ) : data?.content && data.content.length > 0 ? (
           <>
-            {data.content.map((post) => (
-              <PostCard key={post.id} post={post} />
-            ))}
+            {data.content
+              .filter((post) => !post.isHidden) // Filter out hidden posts
+              .map((post) => (
+                <PostCard key={post.id} post={post} />
+              ))}
             {activeTab === 'My Community' && <CommunitiesSection />}
           </>
         ) : (

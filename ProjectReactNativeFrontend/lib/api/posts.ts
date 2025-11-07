@@ -12,6 +12,7 @@ export interface PostDto {
   commentCount: number;
   reactionCount: number;
   userReaction?: string | null;
+  isHidden?: boolean;
   createdAt: string;
   updatedAt: string;
 }

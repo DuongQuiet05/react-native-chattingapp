@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,10 @@ import { Button } from '@/components/ui/button';
 import { useBlockedUsers, useUnblockUser } from '@/hooks/api/use-blocks';
 import { router } from 'expo-router';
 import { useAuth } from '@/contexts/auth-context';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+
+dayjs.extend(relativeTime);
 
 export default function BlockedUsersScreen() {
   const colorScheme = useColorScheme();
@@ -25,10 +29,11 @@ export default function BlockedUsersScreen() {
   const { data: blockedData, isLoading, refetch } = useBlockedUsers();
   const unblockUser = useUnblockUser();
 
+  const blockedUsers = blockedData?.blockedUsers || [];
   const blockedUserIds = blockedData?.blockedUserIds || [];
 
-  const handleUnblock = async (userId: number) => {
-    Alert.alert('Bỏ chặn', 'Bạn có chắc chắn muốn bỏ chặn người dùng này?', [
+  const handleUnblock = async (userId: number, userName: string) => {
+    Alert.alert('Bỏ chặn', `Bạn có chắc chắn muốn bỏ chặn ${userName}?`, [
       { text: 'Hủy', style: 'cancel' },
       {
         text: 'Bỏ chặn',
@@ -68,7 +73,7 @@ export default function BlockedUsersScreen() {
       <ScrollView
         style={styles.body}
         refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} />}>
-        {blockedUserIds.length === 0 ? (
+        {blockedUsers.length === 0 ? (
           <View style={styles.emptyState}>
             <IconSymbol name="person.slash" size={64} color={colors.textSecondary} />
             <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
@@ -77,23 +82,37 @@ export default function BlockedUsersScreen() {
           </View>
         ) : (
           <View style={styles.list}>
-            {blockedUserIds.map((userId) => (
-              <Card key={userId} style={styles.userCard}>
-                <View style={styles.userInfo}>
-                  <View style={[styles.avatarPlaceholder, { backgroundColor: colors.backgroundSecondary }]}>
-                    <IconSymbol name="person.fill" size={24} color={colors.textSecondary} />
-                  </View>
+            {blockedUsers.map((blockedUser) => (
+              <Card key={blockedUser.id} style={styles.userCard}>
+                <TouchableOpacity
+                  style={styles.userInfo}
+                  onPress={() => router.push(`/(tabs)/profile/${blockedUser.userId}` as any)}>
+                  {blockedUser.avatarUrl ? (
+                    <Image
+                      source={{ uri: blockedUser.avatarUrl }}
+                      style={styles.avatar}
+                    />
+                  ) : (
+                    <View style={[styles.avatarPlaceholder, { backgroundColor: colors.backgroundSecondary }]}>
+                      <IconSymbol name="person.fill" size={24} color={colors.textSecondary} />
+                    </View>
+                  )}
                   <View style={styles.userDetails}>
-                    <Text style={[styles.userName, { color: colors.text }]}>User ID: {userId}</Text>
+                    <Text style={[styles.userName, { color: colors.text }]}>
+                      {blockedUser.displayName || blockedUser.username}
+                    </Text>
                     <Text style={[styles.userNote, { color: colors.textSecondary }]}>
-                      Người dùng này đã bị chặn
+                      @{blockedUser.username}
+                    </Text>
+                    <Text style={[styles.blockedDate, { color: colors.textSecondary }]}>
+                      Đã chặn {dayjs(blockedUser.blockedAt).fromNow()}
                     </Text>
                   </View>
-                </View>
+                </TouchableOpacity>
                 <Button
                   variant="outline"
                   size="sm"
-                  onPress={() => handleUnblock(userId)}
+                  onPress={() => handleUnblock(blockedUser.userId, blockedUser.displayName || blockedUser.username)}
                   disabled={unblockUser.isPending}>
                   Bỏ chặn
                 </Button>
@@ -173,6 +192,15 @@ const styles = StyleSheet.create({
   userNote: {
     fontSize: 14,
     marginTop: 2,
+  },
+  blockedDate: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
 });
 

@@ -1,6 +1,7 @@
 package org.example.zaloapi.service;
 
 import lombok.RequiredArgsConstructor;
+import org.example.zaloapi.dto.BlockedUserDto;
 import org.example.zaloapi.entity.BlockedUser;
 import org.example.zaloapi.entity.User;
 import org.example.zaloapi.repository.BlockedUserRepository;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -60,6 +62,32 @@ public class BlockService {
     @Transactional(readOnly = true)
     public boolean isBlocked(Long blockerId, Long blockedId) {
         return blockedUserRepository.existsByBlockerIdAndBlockedId(blockerId, blockedId);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isBlockedEitherWay(Long userId1, Long userId2) {
+        return blockedUserRepository.existsByBlockerIdAndBlockedId(userId1, userId2) ||
+               blockedUserRepository.existsByBlockerIdAndBlockedId(userId2, userId1);
+    }
+
+    @Transactional(readOnly = true)
+    public List<BlockedUserDto> getBlockedUsers(Long userId) {
+        List<BlockedUser> blockedUsers = blockedUserRepository.findByBlockerId(userId);
+        return blockedUsers.stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    private BlockedUserDto convertToDto(BlockedUser blockedUser) {
+        User blocked = blockedUser.getBlocked();
+        return BlockedUserDto.builder()
+                .id(blockedUser.getId())
+                .userId(blocked.getId())
+                .username(blocked.getUsername())
+                .displayName(blocked.getDisplayName())
+                .avatarUrl(blocked.getAvatarUrl())
+                .blockedAt(blockedUser.getBlockedAt())
+                .build();
     }
 }
 

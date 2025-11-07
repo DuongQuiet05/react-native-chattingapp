@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, Component, type ReactNode } from 'react';
 import {
   View,
   Text,
@@ -19,15 +19,68 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors, Spacing, BorderRadius, Shadows } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useCreatePost } from '@/hooks/api/use-posts';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadImage } from '@/lib/api/upload-service';
 
 const { width } = Dimensions.get('window');
 
-export default function CreatePostScreen() {
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class CreatePostErrorBoundary extends Component<
+  { children: ReactNode },
+  ErrorBoundaryState
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('❌ CreatePostScreen Error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <SafeAreaView style={styles.container} edges={['top']}>
+          <View style={styles.errorContainer}>
+            <Ionicons name="alert-circle" size={64} color="#FF3B30" />
+            <Text style={styles.errorText}>Đã xảy ra lỗi</Text>
+            <Text style={styles.errorMessage}>
+              {this.state.error?.message || 'Vui lòng thử lại'}
+            </Text>
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={() => {
+                this.setState({ hasError: false, error: null });
+              }}>
+              <Text style={styles.retryButtonText}>Thử lại</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.retryButton, { marginTop: 10, backgroundColor: '#666' }]}
+              onPress={() => router.back()}>
+              <Text style={styles.retryButtonText}>Quay lại</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+function CreatePostScreenContent() {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
+  const colors = Colors[colorScheme ?? 'light'] || Colors.light;
   const createPost = useCreatePost();
   
   const [title, setTitle] = useState('');
@@ -41,8 +94,53 @@ export default function CreatePostScreen() {
   const [locationSearch, setLocationSearch] = useState('');
   const [selectedLocationItem, setSelectedLocationItem] = useState<string | null>(null);
 
+  useEffect(() => {
+    console.log('✅ CreatePostScreen mounted');
+    return () => {
+      console.log('❌ CreatePostScreen unmounted');
+    };
+  }, []);
+
+  // Reset form when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('👁️ CreatePostScreen focused');
+      // Optionally reset form when coming back to this screen
+      // Uncomment if you want to reset form when navigating back
+      // setTitle('');
+      // setBodyText('');
+      // setMediaUrls([]);
+      // setLocation('');
+      // setPrivacyType('PUBLIC');
+    }, [])
+  );
+
+  // Request permissions on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          console.warn('Media library permission not granted');
+        }
+      } catch (error) {
+        console.error('Error requesting permissions:', error);
+      }
+    })();
+  }, []);
+
   const handlePickImage = async () => {
     try {
+      // Check permissions first
+      const { status } = await ImagePicker.getMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        const { status: newStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (newStatus !== 'granted') {
+          Alert.alert('Quyền truy cập', 'Cần quyền truy cập thư viện ảnh để chọn ảnh');
+          return;
+        }
+      }
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -69,13 +167,14 @@ export default function CreatePostScreen() {
           
           setMediaUrls([...mediaUrls, ...uploadedUrls]);
         } catch (error: any) {
-          Alert.alert('Lỗi', 'Không thể upload ảnh');
+          Alert.alert('Lỗi', error.message || 'Không thể upload ảnh');
         } finally {
           setUploading(false);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Image picker error:', error);
+      Alert.alert('Lỗi', error.message || 'Không thể mở thư viện ảnh');
     }
   };
 
@@ -93,7 +192,7 @@ export default function CreatePostScreen() {
     }
 
     try {
-      await createPost.mutateAsync({
+      await safeCreatePost.mutateAsync({
         content: content || '📷', // Gửi emoji nếu chỉ có media
         privacyType,
         mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
@@ -144,12 +243,21 @@ export default function CreatePostScreen() {
     }
   };
 
+  // Ensure we always have valid values
+  const safeColors = colors || Colors.light;
+  const safeCreatePost = createPost || {
+    mutateAsync: async () => {
+      throw new Error('Create post hook not initialized');
+    },
+    isPending: false,
+  };
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: '#E8F4FD' }]} edges={['top']}>
       <KeyboardAvoidingView
         style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.headerButton} onPress={() => router.back()}>
@@ -281,8 +389,8 @@ export default function CreatePostScreen() {
               (!title.trim() && !bodyText.trim() && mediaUrls.length === 0) && styles.postButtonDisabled
             ]}
             onPress={handleCreatePost}
-            disabled={(!title.trim() && !bodyText.trim() && mediaUrls.length === 0) || createPost.isPending || uploading}>
-            {createPost.isPending ? (
+            disabled={(!title.trim() && !bodyText.trim() && mediaUrls.length === 0) || safeCreatePost.isPending || uploading}>
+            {safeCreatePost.isPending ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
               <Text style={styles.postButtonText}>Post</Text>
@@ -366,6 +474,15 @@ export default function CreatePostScreen() {
         </TouchableOpacity>
       </Modal>
     </SafeAreaView>
+  );
+}
+
+// Wrapper component with error boundary
+export default function CreatePostScreen() {
+  return (
+    <CreatePostErrorBoundary>
+      <CreatePostScreenContent />
+    </CreatePostErrorBoundary>
   );
 }
 
@@ -642,5 +759,34 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.lg,
+  },
+  errorText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000000',
+    marginBottom: Spacing.sm,
+  },
+  errorMessage: {
+    fontSize: 14,
+    color: '#666666',
+    textAlign: 'center',
+    marginBottom: Spacing.lg,
+  },
+  retryButton: {
+    backgroundColor: '#000000',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: 12,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
