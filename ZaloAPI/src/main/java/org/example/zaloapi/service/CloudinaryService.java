@@ -47,14 +47,7 @@ public class CloudinaryService {
         Map<String, Object> uploadResult = cloudinary.uploader().upload(file.getBytes(),
                 ObjectUtils.asMap(
                         "folder", "zalo_chat/videos",
-                        "resource_type", "video",
-                        "eager", ObjectUtils.asMap(
-                                "width", 300,
-                                "height", 300,
-                                "crop", "pad",
-                                "format", "jpg"
-                        ),
-                        "eager_async", true
+                        "resource_type", "video"
                 ));
 
         log.info("Video uploaded successfully: {}", uploadResult.get("url"));
@@ -97,10 +90,39 @@ public class CloudinaryService {
      * @return Thumbnail URL
      */
     public String generateVideoThumbnail(String publicId) {
-        return cloudinary.url()
-                .resourceType("video")
-                .format("jpg")
-                .generate(publicId + ".jpg");
+        try {
+            // Generate thumbnail URL using transformation
+            // Get frame at 1 second mark and convert to JPG
+            String thumbnailUrl = cloudinary.url()
+                    .resourceType("video")
+                    .format("jpg")
+                    .transformation(new com.cloudinary.Transformation()
+                            .startOffset("1")
+                            .width(300)
+                            .height(300)
+                            .crop("fill")
+                    )
+                    .generate(publicId);
+            
+            log.info("Generated thumbnail URL: {}", thumbnailUrl);
+            return thumbnailUrl;
+        } catch (Exception e) {
+            log.error("Failed to generate thumbnail for video: {}", publicId, e);
+            // Fallback: try simpler approach - just get video URL and replace extension
+            try {
+                String baseUrl = cloudinary.url()
+                        .resourceType("video")
+                        .generate(publicId);
+                // Remove video extension and add .jpg
+                return baseUrl.replaceAll("\\.(mp4|mov|avi|mkv|webm)$", ".jpg");
+            } catch (Exception ex) {
+                log.error("Fallback thumbnail generation also failed", ex);
+                // Last resort: return video URL itself
+                return cloudinary.url()
+                        .resourceType("video")
+                        .generate(publicId);
+            }
+        }
     }
 }
 

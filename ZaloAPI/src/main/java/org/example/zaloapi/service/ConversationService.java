@@ -24,11 +24,33 @@ public class ConversationService {
     private final MessageRepository messageRepository;
     private final MessageReceiptRepository messageReceiptRepository;
     private final BlockService blockService;
+    private final NotificationService notificationService;
 
     @Transactional
     public ConversationDto createConversation(CreateConversationRequest request, Long creatorId) {
         User creator = userRepository.findById(creatorId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Nếu là PRIVATE conversation, kiểm tra xem đã có conversation giữa 2 người chưa
+        if (request.getType().equals("PRIVATE") && request.getParticipantIds().size() == 1) {
+            Long otherUserId = request.getParticipantIds().get(0);
+            List<Conversation> existingConversations = conversationRepository
+                    .findPrivateConversationsBetweenUsers(creatorId, otherUserId);
+            
+            if (!existingConversations.isEmpty()) {
+                // Trả về conversation đã tồn tại đầu tiên (cũ nhất)
+                // Nếu có nhiều conversation (không nên xảy ra), lấy cái đầu tiên
+                return getConversationById(existingConversations.get(0).getId());
+            }
+        }
+
+        // Kiểm tra yêu cầu tối thiểu cho GROUP conversation
+        // Tối thiểu 3 người bao gồm cả người tạo (nghĩa là cần ít nhất 2 participantIds)
+        if (request.getType().equals("GROUP")) {
+            if (request.getParticipantIds().size() < 2) {
+                throw new RuntimeException("Group conversation requires at least 3 people (including creator). Please select at least 2 participants.");
+            }
+        }
 
         Conversation conversation = new Conversation();
         conversation.setType(Conversation.ConversationType.valueOf(request.getType()));
@@ -129,6 +151,14 @@ public class ConversationService {
                 receipt.setUpdatedAt(LocalDateTime.now());
                 messageReceiptRepository.save(receipt);
             }
+        }
+        
+        // Mark MESSAGE và MESSAGE_REACTION notifications as read khi vào conversation
+        try {
+            notificationService.markMessageNotificationsAsReadByConversation(conversationId, userId);
+        } catch (Exception e) {
+            // Log nhưng không throw để không làm gián đoạn việc mark conversation as read
+            System.err.println("⚠️ Failed to mark message notifications as read: " + e.getMessage());
         }
     }
 

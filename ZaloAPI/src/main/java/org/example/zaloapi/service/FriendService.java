@@ -332,6 +332,22 @@ public class FriendService {
         return friendRequestRepository.countPendingRequestsByReceiver(userId);
     }
 
+    /**
+     * Lấy relationship status giữa 2 user
+     */
+    @Transactional(readOnly = true)
+    public UserSearchDto.RelationshipStatus getRelationshipStatus(Long userId, Long currentUserId) {
+        return determineRelationshipStatus(userId, currentUserId);
+    }
+
+    /**
+     * Đếm số bạn chung giữa 2 user
+     */
+    @Transactional(readOnly = true)
+    public long countMutualFriends(Long userId1, Long userId2) {
+        return friendshipRepository.countMutualFriends(userId1, userId2);
+    }
+
     // ========== HELPER METHODS ==========
 
     private UserSearchDto mapToUserSearchDto(User user, Long currentUserId) {

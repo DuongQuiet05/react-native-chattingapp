@@ -22,6 +22,7 @@ public class MessageReactionService {
     private final MessageReactionRepository messageReactionRepository;
     private final MessageRepository messageRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     @Transactional
     public MessageReactionDto reactToMessage(Long messageId, Long userId, String reactionType) {
@@ -54,6 +55,26 @@ public class MessageReactionService {
         reaction.setReactionType(type);
         reaction = messageReactionRepository.save(reaction);
 
+        // Create notification for message sender
+        // Don't notify if reacting to own message
+        Long messageSenderId = message.getSender().getId();
+        if (!messageSenderId.equals(userId)) {
+            try {
+                String reactionText = getReactionText(type);
+                
+                notificationService.createNotification(
+                    messageSenderId,
+                    org.example.zaloapi.entity.Notification.NotificationType.MESSAGE_REACTION,
+                    "@" + user.getUsername() + " " + reactionText + " your message",
+                    user.getDisplayName() + " " + reactionText + " your message",
+                    messageId,
+                    "MESSAGE"
+                );
+            } catch (Exception e) {
+                System.err.println("⚠️ Failed to create message reaction notification: " + e.getMessage());
+            }
+        }
+
         return convertToDto(reaction);
     }
 
@@ -69,6 +90,25 @@ public class MessageReactionService {
         return messageReactionRepository.findByMessageId(messageId).stream()
                 .map(this::convertToDto)
                 .collect(Collectors.toList());
+    }
+
+    private String getReactionText(MessageReaction.ReactionType type) {
+        switch (type) {
+            case LIKE:
+                return "liked";
+            case LOVE:
+                return "loved";
+            case HAHA:
+                return "laughed at";
+            case WOW:
+                return "wowed";
+            case SAD:
+                return "saddened";
+            case ANGRY:
+                return "got angry at";
+            default:
+                return "reacted to";
+        }
     }
 
     private MessageReactionDto convertToDto(MessageReaction reaction) {

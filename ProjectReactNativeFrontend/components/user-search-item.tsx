@@ -1,7 +1,8 @@
 import type { UserSearchResult } from '@/lib/api/friends';
+import { getOrCreatePrivateConversation } from '@/lib/api/conversations';
 import { router } from 'expo-router';
-import React from 'react';
-import { Image, StyleSheet, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { ActivityIndicator, Alert, Image, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
@@ -16,6 +17,23 @@ export function UserSearchItem({
   onSendRequest,
   onAcceptRequest,
 }: UserSearchItemProps) {
+  const [loadingConversation, setLoadingConversation] = useState(false);
+
+  const handleMessage = async () => {
+    try {
+      setLoadingConversation(true);
+      // Tạo hoặc lấy conversation với người này
+      const conversation = await getOrCreatePrivateConversation(user.id);
+      // Navigate đến trang chat với conversationId đúng
+      router.push(`/chat/${conversation.id}` as any);
+    } catch (error: any) {
+      console.error('Error getting conversation:', error);
+      Alert.alert('Lỗi', 'Không thể tạo cuộc trò chuyện. Vui lòng thử lại.');
+    } finally {
+      setLoadingConversation(false);
+    }
+  };
+
   const getStatusColor = () => {
     switch (user.relationshipStatus) {
       case 'FRIEND':
@@ -43,12 +61,14 @@ export function UserSearchItem({
       case 'FRIEND':
         return (
           <TouchableOpacity
-            style={[styles.button, { backgroundColor: '#4CAF50' }]}
-            onPress={() => {
-              // Navigate to chat with this friend
-              router.push(`/chat/${user.id}`);
-            }}>
-            <ThemedText style={styles.buttonText}>Nhắn tin</ThemedText>
+            style={[styles.button, { backgroundColor: '#4CAF50' }, loadingConversation && styles.buttonDisabled]}
+            onPress={handleMessage}
+            disabled={loadingConversation}>
+            {loadingConversation ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <ThemedText style={styles.buttonText}>Nhắn tin</ThemedText>
+            )}
           </TouchableOpacity>
         );
 
@@ -82,8 +102,7 @@ export function UserSearchItem({
       <TouchableOpacity
         style={styles.content}
         onPress={() => {
-          // Navigate to user profile (to be implemented)
-          console.log('View profile:', user.id);
+          router.push(`/(tabs)/profile/${user.id}` as any);
         }}>
         <Image
           source={{ uri: user.avatarUrl || 'https://i.pravatar.cc/150' }}

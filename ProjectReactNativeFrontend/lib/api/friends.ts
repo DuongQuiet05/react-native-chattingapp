@@ -187,3 +187,15 @@ export async function updatePrivacySettings(
     body: JSON.stringify(settings),
   });
 }
+
+/**
+ * Lấy relationship status với một user cụ thể
+ */
+export interface RelationshipStatusResponse {
+  relationshipStatus: RelationshipStatus;
+  mutualFriendsCount: number;
+}
+
+export async function getRelationshipStatus(userId: number): Promise<RelationshipStatusResponse> {
+  return apiFetch<RelationshipStatusResponse>(`/friends/relationship/${userId}`);
+}

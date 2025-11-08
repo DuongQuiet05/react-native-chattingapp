@@ -21,7 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useCreatePost } from '@/hooks/api/use-posts';
 import { router, useFocusEffect } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { uploadImage } from '@/lib/api/upload-service';
+import { uploadImage, uploadVideo } from '@/lib/api/upload-service';
 
 const { width } = Dimensions.get('window');
 
@@ -86,7 +86,13 @@ function CreatePostScreenContent() {
   const [title, setTitle] = useState('');
   const [bodyText, setBodyText] = useState('');
   const [privacyType, setPrivacyType] = useState<'PUBLIC' | 'FRIENDS' | 'PRIVATE'>('PUBLIC');
-  const [mediaUrls, setMediaUrls] = useState<string[]>([]);
+  // Local media files (before upload) - store local URIs and metadata
+  const [localMediaFiles, setLocalMediaFiles] = useState<Array<{
+    uri: string;
+    type: 'image' | 'video';
+    name: string;
+    mimeType: string;
+  }>>([]);
   const [uploading, setUploading] = useState(false);
   const [location, setLocation] = useState('');
   const [selectedCommunity, setSelectedCommunity] = useState<string | null>(null);
@@ -149,28 +155,20 @@ function CreatePostScreenContent() {
       });
 
       if (!result.canceled && result.assets) {
-        setUploading(true);
-        try {
-          const uploadedUrls: string[] = [];
+        // Chỉ lưu local URIs, chưa upload lên Cloudinary
+        const newMediaFiles = result.assets.slice(0, 5 - localMediaFiles.length).map((asset) => {
+          const fileType = asset.mimeType || (asset.uri.endsWith('.png') ? 'image/png' : 'image/jpeg');
+          const fileName = asset.fileName || `image_${Date.now()}${asset.uri.endsWith('.png') ? '.png' : '.jpg'}`;
           
-          for (const asset of result.assets.slice(0, 5)) {
-            const fileType = asset.mimeType || (asset.uri.endsWith('.png') ? 'image/png' : 'image/jpeg');
-            const fileName = asset.fileName || `image_${Date.now()}${asset.uri.endsWith('.png') ? '.png' : '.jpg'}`;
-            
-            const uploadResult = await uploadImage({
-              uri: asset.uri,
-              name: fileName,
-              type: fileType,
-            });
-            uploadedUrls.push(uploadResult.fileUrl);
-          }
-          
-          setMediaUrls([...mediaUrls, ...uploadedUrls]);
-        } catch (error: any) {
-          Alert.alert('Lỗi', error.message || 'Không thể upload ảnh');
-        } finally {
-          setUploading(false);
-        }
+          return {
+            uri: asset.uri,
+            type: 'image' as const,
+            name: fileName,
+            mimeType: fileType,
+          };
+        });
+        
+        setLocalMediaFiles([...localMediaFiles, ...newMediaFiles]);
       }
     } catch (error: any) {
       console.error('Image picker error:', error);
@@ -178,26 +176,119 @@ function CreatePostScreenContent() {
     }
   };
 
-  const handleRemoveImage = (index: number) => {
-    setMediaUrls(mediaUrls.filter((_, i) => i !== index));
+  const handlePickVideo = async () => {
+    try {
+      // Check permissions first
+      const { status } = await ImagePicker.getMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        const { status: newStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (newStatus !== 'granted') {
+          Alert.alert('Quyền truy cập', 'Cần quyền truy cập thư viện video để chọn video');
+          return;
+        }
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+        allowsEditing: false,
+        quality: 0.8,
+        allowsMultipleSelection: false, // Only one video at a time
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        // Chỉ lưu local URI, chưa upload lên Cloudinary
+        const asset = result.assets[0];
+        const fileType = asset.mimeType || 'video/mp4';
+        const fileName = asset.fileName || `video_${Date.now()}.mp4`;
+        
+        // Check if we already have 5 media files
+        if (localMediaFiles.length >= 5) {
+          Alert.alert('Thông báo', 'Bạn chỉ có thể chọn tối đa 5 media');
+          return;
+        }
+        
+        setLocalMediaFiles([
+          ...localMediaFiles,
+          {
+            uri: asset.uri,
+            type: 'video' as const,
+            name: fileName,
+            mimeType: fileType,
+          },
+        ]);
+      }
+    } catch (error: any) {
+      console.error('Video picker error:', error);
+      Alert.alert('Lỗi', error.message || 'Không thể mở thư viện video');
+    }
+  };
+
+  const handleRemoveMedia = (index: number) => {
+    setLocalMediaFiles(localMediaFiles.filter((_, i) => i !== index));
   };
 
   const handleCreatePost = async () => {
     const content = title ? `${title}\n\n${bodyText}`.trim() : bodyText.trim();
     
     // API yêu cầu content không được để trống
-    if (!content && mediaUrls.length === 0) {
-      Alert.alert('Lỗi', 'Vui lòng nhập nội dung hoặc thêm ảnh');
+    if (!content && localMediaFiles.length === 0) {
+      Alert.alert('Lỗi', 'Vui lòng nhập nội dung hoặc thêm ảnh/video');
       return;
     }
 
+    // Kiểm tra nếu đang upload
+    if (uploading) {
+      Alert.alert('Thông báo', 'Đang upload media, vui lòng đợi...');
+      return;
+    }
+
+    setUploading(true);
+    
     try {
+      // Upload tất cả media lên Cloudinary trước khi đăng bài
+      const uploadedUrls: string[] = [];
+      
+      for (const mediaFile of localMediaFiles) {
+        try {
+          let uploadResult;
+          if (mediaFile.type === 'image') {
+            uploadResult = await uploadImage({
+              uri: mediaFile.uri,
+              name: mediaFile.name,
+              type: mediaFile.mimeType,
+            });
+          } else {
+            uploadResult = await uploadVideo({
+              uri: mediaFile.uri,
+              name: mediaFile.name,
+              type: mediaFile.mimeType,
+            });
+          }
+          uploadedUrls.push(uploadResult.fileUrl);
+        } catch (error: any) {
+          console.error('Failed to upload media:', error);
+          Alert.alert('Lỗi', `Không thể upload ${mediaFile.type === 'image' ? 'ảnh' : 'video'}: ${mediaFile.name}`);
+          setUploading(false);
+          return;
+        }
+      }
+
+      // Sau khi upload xong, tạo post
       await safeCreatePost.mutateAsync({
         content: content || '📷', // Gửi emoji nếu chỉ có media
         privacyType,
-        mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
+        mediaUrls: uploadedUrls.length > 0 ? uploadedUrls : undefined,
         location: location.trim() || undefined,
       });
+      
+      // Reset form sau khi đăng bài thành công
+      setTitle('');
+      setBodyText('');
+      setLocalMediaFiles([]);
+      setLocation('');
+      setPrivacyType('PUBLIC');
+      setSelectedLocationItem(null);
+      setLocationSearch('');
       
       Alert.alert('Thành công', 'Đã đăng bài viết', [
         {
@@ -205,8 +296,11 @@ function CreatePostScreenContent() {
           onPress: () => router.back(),
         },
       ]);
-    } catch (error) {
-      Alert.alert('Lỗi', 'Không thể đăng bài viết');
+    } catch (error: any) {
+      console.error('Failed to create post:', error);
+      Alert.alert('Lỗi', error.message || 'Không thể đăng bài viết');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -308,6 +402,16 @@ function CreatePostScreenContent() {
                     <Ionicons name="image-outline" size={24} color="#666666" />
                   )}
                 </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.mediaIconButton}
+                  onPress={handlePickVideo}
+                  disabled={uploading}>
+                  {uploading ? (
+                    <ActivityIndicator size="small" color="#666666" />
+                  ) : (
+                    <Ionicons name="videocam-outline" size={24} color="#666666" />
+                  )}
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.mediaIconButton}>
                   <Ionicons name="calendar-outline" size={24} color="#666666" />
                 </TouchableOpacity>
@@ -323,20 +427,39 @@ function CreatePostScreenContent() {
               </View>
 
               {/* Media Preview */}
-              {mediaUrls.length > 0 && (
+              {localMediaFiles.length > 0 && (
                 <View style={styles.mediaPreview}>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {mediaUrls.map((url, index) => (
+                    {localMediaFiles.map((mediaFile, index) => (
                       <View key={index} style={styles.mediaPreviewItem}>
-                        <Image source={{ uri: url }} style={styles.previewImage} resizeMode="cover" />
+                        {mediaFile.type === 'video' ? (
+                          <View style={styles.previewVideoContainer}>
+                            <Image 
+                              source={{ uri: mediaFile.uri }} 
+                              style={styles.previewImage} 
+                              resizeMode="cover" 
+                            />
+                            <View style={styles.previewVideoOverlay}>
+                              <Ionicons name="play-circle" size={32} color="#FFFFFF" />
+                            </View>
+                          </View>
+                        ) : (
+                          <Image source={{ uri: mediaFile.uri }} style={styles.previewImage} resizeMode="cover" />
+                        )}
                         <TouchableOpacity
                           style={styles.removePreviewButton}
-                          onPress={() => handleRemoveImage(index)}>
+                          onPress={() => handleRemoveMedia(index)}>
                           <Ionicons name="close-circle" size={24} color="#FFFFFF" />
                         </TouchableOpacity>
                       </View>
                     ))}
                   </ScrollView>
+                  {uploading && (
+                    <View style={styles.uploadingIndicator}>
+                      <ActivityIndicator size="small" color="#666666" />
+                      <Text style={styles.uploadingText}>Đang upload...</Text>
+                    </View>
+                  )}
                 </View>
               )}
             </View>
@@ -386,11 +509,11 @@ function CreatePostScreenContent() {
           <TouchableOpacity
             style={[
               styles.postButton,
-              (!title.trim() && !bodyText.trim() && mediaUrls.length === 0) && styles.postButtonDisabled
+              (!title.trim() && !bodyText.trim() && localMediaFiles.length === 0) && styles.postButtonDisabled
             ]}
             onPress={handleCreatePost}
-            disabled={(!title.trim() && !bodyText.trim() && mediaUrls.length === 0) || safeCreatePost.isPending || uploading}>
-            {safeCreatePost.isPending ? (
+            disabled={(!title.trim() && !bodyText.trim() && localMediaFiles.length === 0) || safeCreatePost.isPending || uploading}>
+            {safeCreatePost.isPending || uploading ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
               <Text style={styles.postButtonText}>Post</Text>
@@ -593,12 +716,38 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: 8,
   },
+  previewVideoContainer: {
+    position: 'relative',
+  },
+  previewVideoOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderRadius: 8,
+  },
   removePreviewButton: {
     position: 'absolute',
     top: -8,
     right: -8,
     backgroundColor: '#000000',
     borderRadius: 12,
+  },
+  uploadingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: Spacing.sm,
+    gap: Spacing.xs,
+    paddingVertical: Spacing.xs,
+  },
+  uploadingText: {
+    fontSize: 14,
+    color: '#666666',
   },
   optionsSection: {
     gap: Spacing.sm,

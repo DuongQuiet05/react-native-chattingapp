@@ -14,15 +14,18 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors, Spacing, BorderRadius, Shadows } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/auth-context';
 import { useUserProfile } from '@/hooks/api/use-profile';
 import { useUserPosts } from '@/hooks/api/use-posts';
-import { searchUsers, type RelationshipStatus, getFriendsList, type FriendProfile } from '@/lib/api/friends';
+import { searchUsers, type RelationshipStatus, getFriendsList, type FriendProfile, removeFriend, getRelationshipStatus } from '@/lib/api/friends';
 import { SendFriendRequestModal } from '@/components/send-friend-request-modal';
 import { useCheckBlocked, useBlockUser, useUnblockUser } from '@/hooks/api/use-blocks';
+import { contactQueryKeys } from '@/hooks/api/use-contacts';
+import { getOrCreatePrivateConversation } from '@/lib/api/conversations';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -99,6 +102,7 @@ export default function UserProfileScreen() {
   const { user: currentUser } = useAuth();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
+  const queryClient = useQueryClient();
   
   const userIdNum = parseInt(userId || '0', 10);
   const isOwnProfile = currentUser?.id === userIdNum;
@@ -112,6 +116,9 @@ export default function UserProfileScreen() {
   const [loadingRelationship, setLoadingRelationship] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [friendDropdownVisible, setFriendDropdownVisible] = useState(false);
+  const [unfriending, setUnfriending] = useState(false);
+  const [loadingConversation, setLoadingConversation] = useState(false);
   
   const [activeTab, setActiveTab] = useState<'Activity' | 'Post' | 'Tagged' | 'Media'>('Activity');
 
@@ -123,42 +130,58 @@ export default function UserProfileScreen() {
 
   // Load relationship status and mutual friends
   useEffect(() => {
-    if (!isOwnProfile && profile?.username && currentUser?.id) {
+    if (!isOwnProfile && userIdNum && currentUser?.id) {
       setLoadingRelationship(true);
-      searchUsers(profile.username)
-        .then((searchResults) => {
-          const userResult = searchResults.find((u) => u.id === userIdNum);
-          if (userResult) {
-            setRelationshipStatus(userResult.relationshipStatus);
-            setMutualFriendsCount(userResult.mutualFriendsCount);
-            
-            // Load mutual friends list if there are mutual friends
-            if (userResult.mutualFriendsCount > 0) {
-              getFriendsList()
-                .then((currentUserFriends) => {
-                  // Show first few friends as mutual friends (simplified)
-                  // In a real app, you'd need an API endpoint to get mutual friends list
-                  setMutualFriends(currentUserFriends.slice(0, Math.min(10, userResult.mutualFriendsCount)));
-                })
-                .catch((error) => {
-                  console.warn('Could not load friends list:', error);
-                  // Continue without mutual friends list
-                });
-            }
+      getRelationshipStatus(userIdNum)
+        .then((response) => {
+          setRelationshipStatus(response.relationshipStatus);
+          setMutualFriendsCount(response.mutualFriendsCount);
+          
+          // Load mutual friends list if there are mutual friends
+          if (response.mutualFriendsCount > 0) {
+            getFriendsList()
+              .then((currentUserFriends) => {
+                // Show first few friends as mutual friends (simplified)
+                // In a real app, you'd need an API endpoint to get mutual friends list
+                setMutualFriends(currentUserFriends.slice(0, Math.min(10, response.mutualFriendsCount)));
+              })
+              .catch((error) => {
+                console.warn('Could not load friends list:', error);
+                // Continue without mutual friends list
+              });
           }
         })
         .catch((error) => {
           console.error('Error loading relationship:', error);
+          // Set default status if error
+          setRelationshipStatus('STRANGER');
         })
         .finally(() => {
           setLoadingRelationship(false);
         });
     }
-  }, [profile?.username, userIdNum, isOwnProfile, currentUser?.id]);
+  }, [userIdNum, isOwnProfile, currentUser?.id]);
 
   const handleSendFriendRequest = () => {
     if (profile) {
       setModalVisible(true);
+    }
+  };
+
+  const handleMessage = async () => {
+    if (!profile || !currentUser?.id) return;
+    
+    try {
+      setLoadingConversation(true);
+      // Tạo hoặc lấy conversation với người này
+      const conversation = await getOrCreatePrivateConversation(userIdNum);
+      // Navigate đến trang chat với conversationId đúng
+      router.push(`/chat/${conversation.id}` as any);
+    } catch (error: any) {
+      console.error('Error getting conversation:', error);
+      Alert.alert('Lỗi', 'Không thể tạo cuộc trò chuyện. Vui lòng thử lại.');
+    } finally {
+      setLoadingConversation(false);
     }
   };
 
@@ -225,6 +248,47 @@ export default function UserProfileScreen() {
     Alert.alert('Báo cáo', 'Tính năng báo cáo sẽ được triển khai trong tương lai');
   };
 
+  const handleUnfriend = async () => {
+    setFriendDropdownVisible(false);
+    Alert.alert(
+      'Hủy kết bạn',
+      `Bạn có chắc chắn muốn hủy kết bạn với ${profile?.displayName || profile?.username}?`,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Hủy kết bạn',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setUnfriending(true);
+              await removeFriend(userIdNum);
+              
+              // Invalidate và refetch ngay lập tức cache danh sách bạn bè
+              await queryClient.invalidateQueries({ queryKey: contactQueryKeys.all });
+              await queryClient.refetchQueries({ queryKey: contactQueryKeys.all });
+              queryClient.invalidateQueries({ queryKey: ['friends'] });
+              
+              Alert.alert('Thành công', 'Đã hủy kết bạn');
+              
+              // Refresh relationship status
+              try {
+                const response = await getRelationshipStatus(userIdNum);
+                setRelationshipStatus(response.relationshipStatus);
+                setMutualFriendsCount(response.mutualFriendsCount);
+              } catch (error) {
+                console.error('Error refreshing relationship status:', error);
+              }
+            } catch (error: any) {
+              Alert.alert('Lỗi', error.message || 'Không thể hủy kết bạn');
+            } finally {
+              setUnfriending(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const formatNumber = (num: number) => {
     if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
     return num.toString();
@@ -262,8 +326,14 @@ export default function UserProfileScreen() {
         ) : (
           <>
             {relationshipStatus === 'FRIEND' ? (
-              <View style={[styles.actionButton, styles.friendButton]}>
-                <Text style={styles.friendButtonText}>Bạn bè</Text>
+              <View style={styles.friendButtonContainer}>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.friendButton]}
+                  onPress={() => setFriendDropdownVisible(true)}
+                  disabled={unfriending}>
+                  <Text style={styles.friendButtonText}>Bạn bè</Text>
+                  <Ionicons name="chevron-down" size={16} color="#000" style={{ marginLeft: 4 }} />
+                </TouchableOpacity>
               </View>
             ) : relationshipStatus === 'REQUEST_SENT' ? (
               <View style={[styles.actionButton, styles.disabledButton]}>
@@ -277,9 +347,14 @@ export default function UserProfileScreen() {
               </TouchableOpacity>
             )}
             <TouchableOpacity
-              style={[styles.actionButton, styles.messageButton]}
-              onPress={() => router.push(`/chat/${userIdNum}` as any)}>
-              <Text style={styles.messageButtonText}>Message</Text>
+              style={[styles.actionButton, styles.messageButton, loadingConversation && styles.messageButtonDisabled]}
+              onPress={handleMessage}
+              disabled={loadingConversation}>
+              {loadingConversation ? (
+                <ActivityIndicator size="small" color="#000" />
+              ) : (
+                <Text style={styles.messageButtonText}>Message</Text>
+              )}
             </TouchableOpacity>
           </>
         )}
@@ -442,6 +517,29 @@ export default function UserProfileScreen() {
         />
       )}
 
+      {/* Friend Dropdown Modal */}
+      <Modal
+        visible={friendDropdownVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setFriendDropdownVisible(false)}>
+        <TouchableOpacity
+          style={styles.dropdownOverlay}
+          activeOpacity={1}
+          onPress={() => setFriendDropdownVisible(false)}>
+          <View style={styles.dropdownContainer}>
+            <View style={styles.dropdown}>
+              <TouchableOpacity
+                style={styles.dropdownItem}
+                onPress={handleUnfriend}>
+                <Ionicons name="person-remove-outline" size={20} color="#ff3b30" />
+                <Text style={styles.dropdownItemText}>Hủy kết bạn</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       {/* Menu Modal */}
       <Modal
         visible={menuVisible}
@@ -580,18 +678,56 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  friendButtonContainer: {
+    flex: 1,
+    position: 'relative',
+  },
   friendButton: {
     backgroundColor: '#f0f0f0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   friendButtonText: {
     color: '#000',
     fontSize: 14,
     fontWeight: '600',
   },
+  dropdownContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dropdown: {
+    backgroundColor: '#2c2c2e',
+    borderRadius: 12,
+    paddingVertical: 8,
+    minWidth: 200,
+    ...Shadows.md,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  dropdownItemText: {
+    color: '#fff',
+    fontSize: 15,
+    marginLeft: 12,
+    fontWeight: '400',
+  },
+  dropdownOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
   messageButton: {
     backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: '#000',
+  },
+  messageButtonDisabled: {
+    opacity: 0.6,
   },
   messageButtonText: {
     color: '#000',

@@ -2,7 +2,7 @@ import { apiFetch } from './http-client';
 
 export interface NotificationDto {
   id: number;
-  notificationType: 'MESSAGE' | 'FRIEND_REQUEST' | 'FRIEND_ACCEPTED' | 'POST_COMMENT' | 'POST_REACTION' | 'COMMENT_REPLY';
+  notificationType: 'MESSAGE' | 'MESSAGE_REACTION' | 'FRIEND_REQUEST' | 'FRIEND_ACCEPTED' | 'POST_COMMENT' | 'POST_REACTION' | 'COMMENT_REPLY';
   title: string;
   content?: string | null;
   relatedEntityId?: number | null;
@@ -29,6 +29,10 @@ export async function getUnreadNotifications() {
 
 export async function getUnreadCount() {
   return apiFetch<{ count: number }>('/notifications/unread/count');
+}
+
+export async function getUnreadMessageNotificationCount() {
+  return apiFetch<{ count: number }>('/notifications/unread/message/count');
 }
 
 export async function markNotificationAsRead(notificationId: number) {

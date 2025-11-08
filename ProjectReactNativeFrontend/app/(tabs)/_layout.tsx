@@ -3,8 +3,8 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth-context';
 import { useFriendRequestsCount } from '@/hooks/api/use-friend-requests-count';
-import { useUnreadCount } from '@/hooks/api/use-notifications';
-import { useUnreadMessagesCount } from '@/hooks/api/use-unread-messages-count';
+import { useUnreadCount, useUnreadMessageNotificationCount } from '@/hooks/api/use-notifications';
+import { useNotificationRealtime } from '@/hooks/api/use-notification-realtime';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs, useRouter } from 'expo-router';
@@ -16,16 +16,19 @@ export default function TabLayout() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   
+  // Subscribe to notifications realtime
+  useNotificationRealtime();
+  
   // Only fetch data when authenticated to prevent API calls during logout
   // Use enabled option to disable queries when not authenticated
   const friendRequestCountQuery = useFriendRequestsCount();
-  const unreadCountQuery = useUnreadCount();
-  const unreadMessagesCountQuery = useUnreadMessagesCount();
+  const unreadCountQuery = useUnreadCount(); // Badge cho notification (chuông) - chỉ POST_COMMENT, POST_REACTION, COMMENT_REPLY
+  const unreadMessageNotificationCountQuery = useUnreadMessageNotificationCount(); // Badge cho tin nhắn - chỉ MESSAGE, MESSAGE_REACTION
   
   // Only use data when authenticated, and queries are disabled when not authenticated
   const friendRequestCount = status === 'authenticated' ? friendRequestCountQuery.data : undefined;
   const unreadCount = status === 'authenticated' ? unreadCountQuery.data : undefined;
-  const unreadMessagesCount = status === 'authenticated' ? unreadMessagesCountQuery.data : undefined;
+  const unreadMessageNotificationCount = status === 'authenticated' ? unreadMessageNotificationCountQuery.data : undefined;
   
   const hasRedirectedRef = useRef(false);
   const previousStatusRef = useRef<'loading' | 'unauthenticated' | 'authenticated' | undefined>(undefined);
@@ -129,7 +132,7 @@ export default function TabLayout() {
         options={{
           title: 'Tin nhắn',
           tabBarIcon: ({ color }) => <IconSymbol size={24} name="message.fill" color={color} />,
-          tabBarBadge: unreadMessagesCount && unreadMessagesCount.count > 0 ? unreadMessagesCount.count : undefined,
+          tabBarBadge: unreadMessageNotificationCount && unreadMessageNotificationCount.count > 0 ? unreadMessageNotificationCount.count : undefined,
         }}
       />
       <Tabs.Screen

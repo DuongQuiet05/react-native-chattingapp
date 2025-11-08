@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useAuth } from '@/contexts/auth-context';
+import { PostMediaCarousel } from '@/components/post-media-carousel';
+import { useFocusEffect } from '@react-navigation/native';
 
 dayjs.extend(relativeTime);
 
@@ -99,9 +101,39 @@ export default function PostDetailScreen() {
   const [commentText, setCommentText] = useState('');
   const [showReactions, setShowReactions] = useState(false);
   const [showAllComments, setShowAllComments] = useState(false);
+  const [shouldPlayVideo, setShouldPlayVideo] = useState(false);
 
   const comments = commentsData?.comments || [];
   const displayedComments = showAllComments ? comments : comments.slice(0, 3);
+
+  // Check if post has video (only when post is loaded)
+  const hasVideo = post ? post.mediaUrls?.some((url: string) => {
+    if (!url) return false;
+    const lowerUrl = url.toLowerCase();
+    return lowerUrl.includes('/video/upload/') || 
+           lowerUrl.includes('/video/') ||
+           ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v', '.3gp'].some(ext => lowerUrl.includes(ext));
+  }) : false;
+
+  // Auto-play video when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      // Start playing video when screen is focused and post has video
+      if (post && hasVideo) {
+        // Small delay to ensure component is mounted
+        const timer = setTimeout(() => {
+          setShouldPlayVideo(true);
+        }, 300);
+        return () => {
+          clearTimeout(timer);
+          setShouldPlayVideo(false);
+        };
+      }
+      return () => {
+        setShouldPlayVideo(false);
+      };
+    }, [post, hasVideo])
+  );
 
   const formatNumber = (num: number) => {
     if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
@@ -187,13 +219,19 @@ export default function PostDetailScreen() {
           refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} />}>
           {/* Post Container */}
           <View style={styles.postContainer}>
-            {/* Post Image */}
+            {/* Post Media Carousel */}
             {post.mediaUrls && post.mediaUrls.length > 0 && (
-              <Image
-                source={{ uri: post.mediaUrls[0] }}
-                style={styles.postImage}
-                resizeMode="cover"
-              />
+              <View style={styles.postMediaContainer}>
+                <PostMediaCarousel
+                  mediaUrls={post.mediaUrls}
+                  imageWidth={width}
+                  imageHeight={width * 0.75}
+                  autoPlay={hasVideo} // Enable auto-play for videos
+                  shouldPlay={shouldPlayVideo && hasVideo} // Play when screen is focused
+                  useNativeControls={hasVideo} // Use native controls for better UX in post-detail
+                  isMuted={false} // Unmuted in post-detail
+                />
+              </View>
             )}
 
             {/* Engagement Metrics */}
@@ -378,9 +416,8 @@ const styles = StyleSheet.create({
     elevation: 2,
     overflow: 'hidden',
   },
-  postImage: {
+  postMediaContainer: {
     width: '100%',
-    height: width * 0.75,
     backgroundColor: '#F0F0F0',
   },
   engagementMetrics: {

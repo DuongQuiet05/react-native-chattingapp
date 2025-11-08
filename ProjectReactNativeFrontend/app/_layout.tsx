@@ -1,7 +1,6 @@
 import { AuthProvider } from "@/contexts/auth-context";
 import { ReactQueryProvider } from "@/providers/react-query-provider";
-// Temporarily disabled to prevent infinite loops during logout
-// import { StompProvider } from "@/providers/stomp-provider";
+import { StompProvider } from "@/providers/stomp-provider";
 // import { NotificationProvider } from "@/providers/notification-provider";
 import {
   DarkTheme,
@@ -79,19 +78,16 @@ export default function RootLayout() {
         <SafeAreaView style={{ flex: 1 }}>
           <ReactQueryProvider>
             <AuthProvider>
-              {/* Temporarily disabled to prevent infinite loops during logout */}
-              {/* <NotificationProvider>
-                <StompProvider> */}
-                  <Stack>
-                    <Stack.Screen name="index" options={INDEX_SCREEN_OPTIONS} />
-                    <Stack.Screen name="(auth)" options={AUTH_SCREEN_OPTIONS} />
-                    <Stack.Screen name="(tabs)" options={TABS_SCREEN_OPTIONS} />
-                    <Stack.Screen name="chat" options={CHAT_SCREEN_OPTIONS} />
-                    <Stack.Screen name="modal" options={MODAL_SCREEN_OPTIONS} />
-                  </Stack>
-                  <StatusBar style="auto" />
-                {/* </StompProvider>
-              </NotificationProvider> */}
+              <StompProvider>
+                <Stack>
+                  <Stack.Screen name="index" options={INDEX_SCREEN_OPTIONS} />
+                  <Stack.Screen name="(auth)" options={AUTH_SCREEN_OPTIONS} />
+                  <Stack.Screen name="(tabs)" options={TABS_SCREEN_OPTIONS} />
+                  <Stack.Screen name="chat" options={CHAT_SCREEN_OPTIONS} />
+                  <Stack.Screen name="modal" options={MODAL_SCREEN_OPTIONS} />
+                </Stack>
+                <StatusBar style="auto" />
+              </StompProvider>
             </AuthProvider>
           </ReactQueryProvider>
         </SafeAreaView>

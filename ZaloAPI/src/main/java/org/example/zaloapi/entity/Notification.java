@@ -54,6 +54,7 @@ public class Notification {
 
     public enum NotificationType {
         MESSAGE,           // Tin nhắn mới
+        MESSAGE_REACTION,  // Reaction tin nhắn
         FRIEND_REQUEST,    // Yêu cầu kết bạn
         FRIEND_ACCEPTED,   // Đã chấp nhận kết bạn
         POST_COMMENT,      // Bình luận bài viết

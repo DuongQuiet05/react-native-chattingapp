@@ -22,6 +22,7 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
+    private final NotificationWebSocketService notificationWebSocketService;
 
     @Transactional
     public NotificationDto createNotification(Long userId, Notification.NotificationType type,
@@ -40,7 +41,17 @@ public class NotificationService {
         notification.setIsRead(false);
 
         notification = notificationRepository.save(notification);
-        return convertToDto(notification);
+        NotificationDto notificationDto = convertToDto(notification);
+        
+        // Gửi notification realtime qua WebSocket
+        try {
+            notificationWebSocketService.sendNotificationToUser(userId, notificationDto);
+        } catch (Exception e) {
+            // Log nhưng không throw để không làm gián đoạn việc tạo notification
+            System.err.println("⚠️ [NotificationService] Failed to send notification via WebSocket: " + e.getMessage());
+        }
+        
+        return notificationDto;
     }
 
     @Transactional(readOnly = true)
@@ -59,7 +70,21 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public long getUnreadCount(Long userId) {
-        return notificationRepository.countByUserIdAndIsReadFalse(userId);
+        // Đếm các thông báo về: comment bài viết, reaction bài viết, reply comment
+        // KHÔNG bao gồm MESSAGE, MESSAGE_REACTION (dùng cho badge ở chuông notification)
+        return notificationRepository.countUnreadPostNotificationsByUserId(userId);
+    }
+    
+    @Transactional(readOnly = true)
+    public long getUnreadMessageNotificationCount(Long userId) {
+        // Đếm các thông báo về: tin nhắn mới, reaction tin nhắn (dùng cho badge ở tab tin nhắn)
+        return notificationRepository.countUnreadMessageNotificationsByUserId(userId);
+    }
+    
+    @Transactional
+    public void markMessageNotificationsAsReadByConversation(Long conversationId, Long userId) {
+        // Mark MESSAGE và MESSAGE_REACTION notifications as read khi vào conversation
+        notificationRepository.markMessageNotificationsAsReadByConversationId(userId, conversationId);
     }
 
     @Transactional

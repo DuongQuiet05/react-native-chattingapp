@@ -161,5 +161,23 @@ public class FriendController {
             "count", count
         ));
     }
+
+    /**
+     * Lấy relationship status với một user cụ thể
+     */
+    @GetMapping("/relationship/{userId}")
+    @Operation(summary = "Get relationship status with a user")
+    public ResponseEntity<Map<String, Object>> getRelationshipStatus(
+            @PathVariable Long userId,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+
+        UserSearchDto.RelationshipStatus status = friendService.getRelationshipStatus(userId, currentUser.getId());
+        long mutualFriendsCount = friendService.countMutualFriends(userId, currentUser.getId());
+        
+        return ResponseEntity.ok(Map.of(
+            "relationshipStatus", status.name(),
+            "mutualFriendsCount", mutualFriendsCount
+        ));
+    }
 }
 

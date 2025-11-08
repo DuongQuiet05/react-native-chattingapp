@@ -37,7 +37,7 @@ function NotificationItem({ notification }: { notification: NotificationDto }) {
       await markAsRead.mutateAsync(notification.id);
     }
 
-    // Navigate based on notification type (chỉ POST_COMMENT và POST_REACTION)
+    // Navigate based on notification type
     switch (notification.notificationType) {
       case 'POST_COMMENT':
       case 'POST_REACTION':
@@ -150,11 +150,11 @@ export default function NotificationsScreen() {
     await handleMarkAllRead();
   };
 
-  // Lọc notifications: chỉ hiển thị POST_COMMENT và POST_REACTION
+  // Lọc notifications: chỉ hiển thị POST_COMMENT, POST_REACTION, COMMENT_REPLY
+  // KHÔNG hiển thị MESSAGE và MESSAGE_REACTION (chúng được hiển thị ở tab tin nhắn)
   const filteredNotifications = useMemo(() => {
     const all = data?.content || [];
     console.log('📬 [Notifications] Total notifications:', all.length);
-    console.log('📬 [Notifications] All notifications:', JSON.stringify(all, null, 2));
     
     const filtered = all.filter(
       (notification) =>
@@ -164,7 +164,6 @@ export default function NotificationsScreen() {
     );
     
     console.log('📬 [Notifications] Filtered notifications:', filtered.length);
-    console.log('📬 [Notifications] Filtered:', JSON.stringify(filtered, null, 2));
     
     return filtered;
   }, [data?.content]);

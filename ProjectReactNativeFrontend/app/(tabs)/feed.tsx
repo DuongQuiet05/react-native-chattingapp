@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   RefreshControl,
   ActivityIndicator,
   Dimensions,
+  FlatList,
+  ViewToken,
 } from 'react-native';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors, Spacing, BorderRadius, Shadows } from '@/constants/theme';
@@ -21,6 +23,8 @@ import { router } from 'expo-router';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useAuth } from '@/contexts/auth-context';
+import { PostMediaCarousel } from '@/components/post-media-carousel';
+import { useFocusEffect } from '@react-navigation/native';
 
 dayjs.extend(relativeTime);
 
@@ -125,13 +129,27 @@ function StoriesSection() {
   );
 }
 
-function PostCard({ post }: { post: any }) {
+interface PostCardProps {
+  post: any;
+  isVisible?: boolean; // Whether this post is currently visible on screen
+}
+
+function PostCard({ post, isVisible = false }: PostCardProps) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   const { user } = useAuth();
   const reactToPost = useReactToPost();
   const removeReaction = useRemovePostReaction();
   const [showReactions, setShowReactions] = useState(false);
+
+  // Check if post has video
+  const hasVideo = post.mediaUrls?.some((url: string) => {
+    if (!url) return false;
+    const lowerUrl = url.toLowerCase();
+    return lowerUrl.includes('/video/upload/') || 
+           lowerUrl.includes('/video/') ||
+           ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v', '.3gp'].some(ext => lowerUrl.includes(ext));
+  });
 
   const handleReaction = async (reactionType: string) => {
     if (post.userReaction === reactionType) {
@@ -194,17 +212,22 @@ function PostCard({ post }: { post: any }) {
       {/* Post Media */}
       {post.mediaUrls && post.mediaUrls.length > 0 && (
         <TouchableOpacity
-          onPress={() => router.push(`/(tabs)/post-detail?postId=${post.id}` as any)}
-          style={styles.mediaContainer}>
-          {post.mediaUrls.length === 1 ? (
-            <Image source={{ uri: post.mediaUrls[0] }} style={styles.postImage} resizeMode="cover" />
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} pagingEnabled>
-              {post.mediaUrls.map((url: string, index: number) => (
-                <Image key={index} source={{ uri: url }} style={styles.postImage} resizeMode="cover" />
-              ))}
-            </ScrollView>
-          )}
+          onPress={() => {
+            // Pause video before navigating to post-detail
+            router.push(`/(tabs)/post-detail?postId=${post.id}` as any);
+          }}
+          style={styles.mediaContainer}
+          activeOpacity={1}
+          delayPressIn={100}>
+          <PostMediaCarousel
+            mediaUrls={post.mediaUrls}
+            imageWidth={width - Spacing.md * 4}
+            imageHeight={300}
+            autoPlay={hasVideo} // Enable auto-play for posts with video
+            shouldPlay={isVisible && hasVideo} // Play only when visible and has video
+            isMuted={true} // Muted by default in feed (like Instagram/TikTok)
+            showMuteButton={hasVideo} // Show mute/unmute button for videos
+          />
         </TouchableOpacity>
       )}
 
@@ -363,6 +386,8 @@ export default function FeedScreen() {
   const [page, setPage] = useState(0);
   const { data, isLoading, isRefetching, refetch } = useFeed(page, 20);
   const { data: unreadCount } = useUnreadCount();
+  const [visiblePostIds, setVisiblePostIds] = useState<Set<number>>(new Set());
+  const flatListRef = useRef<FlatList>(null);
 
   const handleRefresh = () => {
     refetch();
@@ -373,6 +398,32 @@ export default function FeedScreen() {
   };
 
   const tabs = ['For You', 'Following', 'My Community'] as const;
+
+  // Track visible posts for auto-play video
+  const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    const visibleIds = new Set<number>();
+    viewableItems.forEach((item) => {
+      if (item.item?.id) {
+        visibleIds.add(item.item.id);
+      }
+    });
+    setVisiblePostIds(visibleIds);
+  }, []);
+
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 50, // Post is considered visible when 50% is on screen
+  }).current;
+
+  // Pause all videos when screen loses focus (user navigates away or switches tabs)
+  useFocusEffect(
+    useCallback(() => {
+      // When screen gains focus, do nothing (videos will auto-play based on visibility)
+      return () => {
+        // When screen loses focus (blur), pause all videos by clearing visible posts
+        setVisiblePostIds(new Set());
+      };
+    }, [])
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -429,45 +480,78 @@ export default function FeedScreen() {
       </View>
 
       {/* Feed */}
-      <ScrollView
-        style={styles.feed}
-        contentContainerStyle={styles.feedContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} tintColor={colors.primary} />}>
-        {/* Stories */}
-        <StoriesSection />
-
-        {/* Communities Section - chỉ hiện ở tab My Community */}
-        {activeTab === 'My Community' && <CommunitiesSection />}
-
-        {/* Posts */}
-        {isLoading && page === 0 ? (
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color={colors.primary} />
-          </View>
-        ) : data?.content && data.content.length > 0 ? (
-          <>
-            {data.content
-              .filter((post) => !post.isHidden) // Filter out hidden posts
-              .map((post) => (
-                <PostCard key={post.id} post={post} />
-              ))}
-            {activeTab === 'My Community' && <CommunitiesSection />}
-          </>
-        ) : (
-          <View style={styles.emptyState}>
-            <IconSymbol name="photo" size={64} color={colors.textSecondary} />
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-              Chưa có bài viết nào
-            </Text>
-            <TouchableOpacity
-              style={[styles.emptyButton, { backgroundColor: colors.primary }]}
-              onPress={handleCreatePost}>
-              <Text style={styles.emptyButtonText}>Tạo bài viết đầu tiên</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </ScrollView>
+      {isLoading && page === 0 ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : data?.content && data.content.length > 0 ? (
+        <FlatList
+          ref={flatListRef}
+          style={styles.feed}
+          contentContainerStyle={styles.feedContent}
+          data={[
+            { type: 'stories', id: 'stories' } as any,
+            ...(activeTab === 'My Community' ? [{ type: 'communities', id: 'communities' } as any] : []),
+            ...data.content
+              .filter((post) => !post.isHidden)
+              .map((post) => ({ type: 'post', ...post } as any)),
+            ...(activeTab === 'My Community' ? [{ type: 'communities-bottom', id: 'communities-bottom' } as any] : []),
+          ]}
+          keyExtractor={(item: any) => {
+            if (item.type === 'stories') return 'stories';
+            if (item.type === 'communities') return 'communities';
+            if (item.type === 'communities-bottom') return 'communities-bottom';
+            return `post-${item.id}`;
+          }}
+          renderItem={({ item }: { item: any }) => {
+            if (item.type === 'stories') {
+              return <StoriesSection />;
+            }
+            if (item.type === 'communities' || item.type === 'communities-bottom') {
+              return <CommunitiesSection />;
+            }
+            if (item.type === 'post') {
+              return (
+                <PostCard 
+                  post={item} 
+                  isVisible={visiblePostIds.has(item.id)}
+                />
+              );
+            }
+            return null;
+          }}
+          showsVerticalScrollIndicator={false}
+          refreshing={isRefetching}
+          onRefresh={handleRefresh}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <IconSymbol name="photo" size={64} color={colors.textSecondary} />
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                Chưa có bài viết nào
+              </Text>
+              <TouchableOpacity
+                style={[styles.emptyButton, { backgroundColor: colors.primary }]}
+                onPress={handleCreatePost}>
+                <Text style={styles.emptyButtonText}>Tạo bài viết đầu tiên</Text>
+              </TouchableOpacity>
+            </View>
+          }
+        />
+      ) : (
+        <View style={styles.emptyState}>
+          <IconSymbol name="photo" size={64} color={colors.textSecondary} />
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+            Chưa có bài viết nào
+          </Text>
+          <TouchableOpacity
+            style={[styles.emptyButton, { backgroundColor: colors.primary }]}
+            onPress={handleCreatePost}>
+            <Text style={styles.emptyButtonText}>Tạo bài viết đầu tiên</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }

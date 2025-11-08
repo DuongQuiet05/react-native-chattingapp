@@ -23,10 +23,9 @@ interface CreateChatModalProps {
   onSuccess: (conversationId: number) => void;
 }
 
-type ChatType = 'PRIVATE' | 'GROUP';
+type ChatType = 'GROUP';
 
 export function CreateChatModal({ visible, onClose, onSuccess }: CreateChatModalProps) {
-  const [chatType, setChatType] = useState<ChatType>('PRIVATE');
   const [groupName, setGroupName] = useState('');
   const [selectedParticipants, setSelectedParticipants] = useState<number[]>([]);
   const [friends, setFriends] = useState<FriendProfile[]>([]);
@@ -66,7 +65,6 @@ export function CreateChatModal({ visible, onClose, onSuccess }: CreateChatModal
   // Reset form when modal closes
   useEffect(() => {
     if (!visible) {
-      setChatType('PRIVATE');
       setGroupName('');
       setSelectedParticipants([]);
       setSearchQuery('');
@@ -87,42 +85,31 @@ export function CreateChatModal({ visible, onClose, onSuccess }: CreateChatModal
   }, [friends, searchQuery]);
 
   const toggleParticipant = (userId: number) => {
-    if (chatType === 'PRIVATE') {
-      // Private chat: chỉ chọn 1 người
-      setSelectedParticipants([userId]);
-    } else {
-      // Group chat: có thể chọn nhiều người
-      setSelectedParticipants((prev) => {
-        if (prev.includes(userId)) {
-          return prev.filter((id) => id !== userId);
-        }
-        return [...prev, userId];
-      });
-    }
+    // Group chat: có thể chọn nhiều người
+    setSelectedParticipants((prev) => {
+      if (prev.includes(userId)) {
+        return prev.filter((id) => id !== userId);
+      }
+      return [...prev, userId];
+    });
   };
 
   const handleCreate = async () => {
-    if (chatType === 'PRIVATE') {
-      if (selectedParticipants.length === 0) {
-        Alert.alert('Lỗi', 'Vui lòng chọn một người để nhắn tin');
-        return;
-      }
-    } else {
-      if (!groupName.trim()) {
-        Alert.alert('Lỗi', 'Vui lòng nhập tên nhóm');
-        return;
-      }
-      if (selectedParticipants.length === 0) {
-        Alert.alert('Lỗi', 'Vui lòng chọn ít nhất một thành viên');
-        return;
-      }
+    if (!groupName.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập tên nhóm');
+      return;
+    }
+    // Yêu cầu tối thiểu 2 người được chọn (vì người tạo đã được tính, tổng cộng sẽ là 3 người)
+    if (selectedParticipants.length < 2) {
+      Alert.alert('Lỗi', 'Vui lòng chọn ít nhất 2 thành viên (tổng cộng tối thiểu 3 người bao gồm bạn)');
+      return;
     }
 
     try {
       const payload: CreateConversationRequest = {
-        type: chatType,
+        type: 'GROUP',
         participantIds: selectedParticipants,
-        ...(chatType === 'GROUP' && { groupName: groupName.trim() }),
+        groupName: groupName.trim(),
       };
 
       const response = await createConversationMutation.mutateAsync(payload);
@@ -171,43 +158,17 @@ export function CreateChatModal({ visible, onClose, onSuccess }: CreateChatModal
           <View style={styles.placeholder} />
         </View>
 
-        {/* Chat Type Selection */}
-        <View style={styles.typeSelector}>
-          <TouchableOpacity
-            style={[styles.typeButton, chatType === 'PRIVATE' && styles.typeButtonActive]}
-            onPress={() => {
-              setChatType('PRIVATE');
-              setSelectedParticipants([]);
-            }}>
-            <Text style={[styles.typeButtonText, chatType === 'PRIVATE' && styles.typeButtonTextActive]}>
-              Nhắn tin riêng
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.typeButton, chatType === 'GROUP' && styles.typeButtonActive]}
-            onPress={() => {
-              setChatType('GROUP');
-              setSelectedParticipants([]);
-            }}>
-            <Text style={[styles.typeButtonText, chatType === 'GROUP' && styles.typeButtonTextActive]}>
-              Nhóm chat
-            </Text>
-          </TouchableOpacity>
+        {/* Group Name Input */}
+        <View style={styles.groupNameContainer}>
+          <TextInput
+            style={styles.groupNameInput}
+            placeholder="Nhập tên nhóm"
+            placeholderTextColor="#999"
+            value={groupName}
+            onChangeText={setGroupName}
+            maxLength={50}
+          />
         </View>
-
-        {/* Group Name Input (only for GROUP) */}
-        {chatType === 'GROUP' && (
-          <View style={styles.groupNameContainer}>
-            <TextInput
-              style={styles.groupNameInput}
-              placeholder="Nhập tên nhóm"
-              placeholderTextColor="#999"
-              value={groupName}
-              onChangeText={setGroupName}
-              maxLength={50}
-            />
-          </View>
-        )}
 
         {/* Search */}
         <View style={styles.searchContainer}>
@@ -250,14 +211,17 @@ export function CreateChatModal({ visible, onClose, onSuccess }: CreateChatModal
           <View style={styles.footer}>
             <Text style={styles.selectedCount}>
               Đã chọn: {selectedParticipants.length} {selectedParticipants.length === 1 ? 'người' : 'người'}
+              {selectedParticipants.length < 2 && (
+                <Text style={styles.warningText}> (Cần thêm {2 - selectedParticipants.length} người nữa)</Text>
+              )}
             </Text>
             <TouchableOpacity
               style={[
                 styles.createButton,
-                createConversationMutation.isPending && styles.createButtonDisabled,
+                (createConversationMutation.isPending || selectedParticipants.length < 2) && styles.createButtonDisabled,
               ]}
               onPress={handleCreate}
-              disabled={createConversationMutation.isPending}>
+              disabled={createConversationMutation.isPending || selectedParticipants.length < 2}>
               {createConversationMutation.isPending ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
@@ -414,6 +378,11 @@ const styles = StyleSheet.create({
   selectedCount: {
     fontSize: 14,
     color: '#666',
+  },
+  warningText: {
+    fontSize: 14,
+    color: '#ff9500',
+    fontWeight: '600',
   },
   createButton: {
     backgroundColor: '#007AFF',

@@ -79,7 +79,19 @@ public class MessageController {
     @Operation(summary = "Upload video", description = "Upload video to Cloudinary and get URL")
     public ResponseEntity<FileUploadResponse> uploadVideo(@RequestParam("file") MultipartFile file) {
         try {
+            System.out.println("📤 Received video upload request:");
+            System.out.println("   - File name: " + file.getOriginalFilename());
+            System.out.println("   - File size: " + file.getSize());
+            System.out.println("   - Content type: " + file.getContentType());
+            System.out.println("   - Is empty: " + file.isEmpty());
+            
+            if (file.isEmpty()) {
+                throw new RuntimeException("File is empty");
+            }
+
             Map<String, Object> uploadResult = cloudinaryService.uploadVideo(file);
+            
+            System.out.println("✅ Video uploaded successfully, result keys: " + uploadResult.keySet());
 
             FileUploadResponse response = new FileUploadResponse();
             response.setFileUrl((String) uploadResult.get("secure_url"));
@@ -90,11 +102,26 @@ public class MessageController {
 
             // Generate thumbnail for video
             String publicId = (String) uploadResult.get("public_id");
-            String thumbnailUrl = cloudinaryService.generateVideoThumbnail(publicId);
-            response.setThumbnailUrl(thumbnailUrl);
+            if (publicId != null) {
+                try {
+                    String thumbnailUrl = cloudinaryService.generateVideoThumbnail(publicId);
+                    response.setThumbnailUrl(thumbnailUrl);
+                } catch (Exception e) {
+                    System.err.println("⚠️ Failed to generate thumbnail, continuing without thumbnail: " + e.getMessage());
+                    // Continue without thumbnail
+                    response.setThumbnailUrl(null);
+                }
+            }
 
+            System.out.println("✅ Video upload response prepared: " + response.getFileUrl());
             return ResponseEntity.ok(response);
         } catch (IOException e) {
+            System.err.println("❌ Failed to upload video (IOException): " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Failed to upload video: " + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("❌ Failed to upload video (Exception): " + e.getMessage());
+            e.printStackTrace();
             throw new RuntimeException("Failed to upload video: " + e.getMessage());
         }
     }

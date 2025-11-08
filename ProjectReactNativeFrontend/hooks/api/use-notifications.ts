@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getNotifications,
   getUnreadCount,
+  getUnreadMessageNotificationCount,
   getUnreadNotifications,
   markAllNotificationsAsRead,
   markNotificationAsRead,
@@ -37,6 +38,17 @@ export function useUnreadCount() {
   return useQuery({
     queryKey: ['unreadCount'],
     queryFn: () => getUnreadCount(),
+    enabled: status === 'authenticated', // Only fetch when authenticated
+    refetchInterval: status === 'authenticated' ? 30000 : false, // Refetch every 30 seconds
+  });
+}
+
+export function useUnreadMessageNotificationCount() {
+  const { status } = useAuth();
+  
+  return useQuery({
+    queryKey: ['unreadMessageNotificationCount'],
+    queryFn: () => getUnreadMessageNotificationCount(),
     enabled: status === 'authenticated', // Only fetch when authenticated
     refetchInterval: status === 'authenticated' ? 30000 : false, // Refetch every 30 seconds
   });

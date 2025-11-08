@@ -696,6 +696,9 @@ export default function ConversationScreen() {
 
     try {
       await markConversationAsRead(numericId);
+      // Invalidate unreadMessageNotificationCount để cập nhật badge sau khi mark as read
+      // Backend đã tự động mark MESSAGE và MESSAGE_REACTION notifications as read
+      queryClient.invalidateQueries({ queryKey: ['unreadMessageNotificationCount'] });
     } catch (error) {
       console.warn('Không thể cập nhật trạng thái đã đọc', error);
     }

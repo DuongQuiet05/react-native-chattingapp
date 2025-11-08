@@ -42,11 +42,20 @@ public class NotificationController {
     }
 
     @GetMapping("/unread/count")
-    @Operation(summary = "Get unread count", description = "Get count of unread notifications")
+    @Operation(summary = "Get unread count", description = "Get count of unread post notifications (POST_COMMENT, POST_REACTION, COMMENT_REPLY)")
     public ResponseEntity<Map<String, Object>> getUnreadCount(
             @AuthenticationPrincipal UserPrincipal currentUser) {
         return ResponseEntity.ok(Map.of(
                 "count", notificationService.getUnreadCount(currentUser.getId())
+        ));
+    }
+    
+    @GetMapping("/unread/message/count")
+    @Operation(summary = "Get unread message notification count", description = "Get count of unread message notifications (MESSAGE, MESSAGE_REACTION)")
+    public ResponseEntity<Map<String, Object>> getUnreadMessageNotificationCount(
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+        return ResponseEntity.ok(Map.of(
+                "count", notificationService.getUnreadMessageNotificationCount(currentUser.getId())
         ));
     }
 
