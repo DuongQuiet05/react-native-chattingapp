@@ -26,11 +26,8 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { useAuth } from '@/contexts/auth-context';
 import { PostMediaCarousel } from '@/components/post-media-carousel';
 import { useFocusEffect } from '@react-navigation/native';
-
 dayjs.extend(relativeTime);
-
 const { width } = Dimensions.get('window');
-
 const REACTION_TYPES = ['LIKE', 'LOVE', 'HAHA', 'WOW', 'SAD', 'ANGRY'] as const;
 const REACTION_EMOJIS = {
   LIKE: '👍',
@@ -40,19 +37,16 @@ const REACTION_EMOJIS = {
   SAD: '😢',
   ANGRY: '😡',
 };
-
 function CommentItem({ comment }: { comment: any }) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   const { user } = useAuth();
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
-
   const formatNumber = (num: number) => {
     if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
     return num.toString();
   };
-
   return (
     <View style={styles.commentItem}>
       <Image
@@ -85,7 +79,6 @@ function CommentItem({ comment }: { comment: any }) {
     </View>
   );
 }
-
 export default function PostDetailScreen() {
   const { postId } = useLocalSearchParams<{ postId: string }>();
   const colorScheme = useColorScheme();
@@ -97,15 +90,12 @@ export default function PostDetailScreen() {
   const deletePost = useDeletePost();
   const reactToPost = useReactToPost();
   const removeReaction = useRemovePostReaction();
-
   const [commentText, setCommentText] = useState('');
   const [showReactions, setShowReactions] = useState(false);
   const [showAllComments, setShowAllComments] = useState(false);
   const [shouldPlayVideo, setShouldPlayVideo] = useState(false);
-
   const comments = commentsData?.comments || [];
   const displayedComments = showAllComments ? comments : comments.slice(0, 3);
-
   // Check if post has video (only when post is loaded)
   const hasVideo = post ? post.mediaUrls?.some((url: string) => {
     if (!url) return false;
@@ -114,8 +104,6 @@ export default function PostDetailScreen() {
            lowerUrl.includes('/video/') ||
            ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v', '.3gp'].some(ext => lowerUrl.includes(ext));
   }) : false;
-
-  // Auto-play video when screen is focused
   useFocusEffect(
     React.useCallback(() => {
       // Start playing video when screen is focused and post has video
@@ -134,12 +122,10 @@ export default function PostDetailScreen() {
       };
     }, [post, hasVideo])
   );
-
   const formatNumber = (num: number) => {
     if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
     return num.toString();
   };
-
   const handleReaction = async (reactionType: string) => {
     if (post?.userReaction === reactionType) {
       await removeReaction.mutateAsync(Number(postId));
@@ -148,7 +134,6 @@ export default function PostDetailScreen() {
     }
     setShowReactions(false);
   };
-
   const handleComment = async () => {
     if (!commentText.trim()) return;
     try {
@@ -159,7 +144,6 @@ export default function PostDetailScreen() {
       Alert.alert('Lỗi', 'Không thể bình luận');
     }
   };
-
   const handleDeletePost = () => {
     Alert.alert('Xóa bài viết', 'Bạn có chắc chắn muốn xóa bài viết này?', [
       { text: 'Hủy', style: 'cancel' },
@@ -177,7 +161,6 @@ export default function PostDetailScreen() {
       },
     ]);
   };
-
   if (isLoading) {
     return (
       <View style={[styles.container, styles.center]}>
@@ -185,7 +168,6 @@ export default function PostDetailScreen() {
       </View>
     );
   }
-
   if (!post) {
     return (
       <View style={[styles.container, styles.center]}>
@@ -196,7 +178,6 @@ export default function PostDetailScreen() {
       </View>
     );
   }
-
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <KeyboardAvoidingView
@@ -212,7 +193,6 @@ export default function PostDetailScreen() {
             <Ionicons name="ellipsis-vertical" size={20} color="#000000" />
           </TouchableOpacity>
         </View>
-
         <ScrollView
           style={styles.body}
           showsVerticalScrollIndicator={false}
@@ -233,7 +213,6 @@ export default function PostDetailScreen() {
                 />
               </View>
             )}
-
             {/* Engagement Metrics */}
             <View style={styles.engagementMetrics}>
               <TouchableOpacity
@@ -270,7 +249,6 @@ export default function PostDetailScreen() {
                 <Text style={styles.metricCount}>{formatNumber(post.bookmarkCount || 0)}</Text>
               </View>
             </View>
-
             {showReactions && (
               <View style={styles.reactionsPicker}>
                 {REACTION_TYPES.map((type) => (
@@ -283,27 +261,23 @@ export default function PostDetailScreen() {
                 ))}
               </View>
             )}
-
             {/* Post Title */}
             <Text style={styles.postTitle}>
               {post.content.length > 60 
                 ? post.content.substring(0, 60) + '...' 
                 : post.content}
             </Text>
-
             {/* Post Description */}
             <Text style={styles.postDescription}>
               {post.content.length > 60 
                 ? post.content.substring(60) 
                 : 'Get your hands dirty and create something beautiful! Discover the art of gerabah making — from shaping clay to adding the final touches.'}
             </Text>
-
             {/* Post Date */}
             <Text style={styles.postDate}>
               {dayjs(post.createdAt).format('D MMMM YYYY')}
             </Text>
           </View>
-
           {/* Comments Section */}
           <View style={styles.commentsSection}>
             {displayedComments.length > 0 ? (
@@ -324,7 +298,6 @@ export default function PostDetailScreen() {
             )}
           </View>
         </ScrollView>
-
         {/* Add Comment Input */}
         <View style={styles.addCommentContainer}>
           <Image
@@ -352,7 +325,6 @@ export default function PostDetailScreen() {
     </SafeAreaView>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,

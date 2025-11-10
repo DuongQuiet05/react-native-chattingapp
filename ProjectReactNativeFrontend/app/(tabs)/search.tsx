@@ -15,17 +15,13 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
 import { SendFriendRequestModal } from '@/components/send-friend-request-modal';
 import type { PostDto } from '@/lib/api/posts';
 import { getFeed } from '@/lib/api/posts';
 import { searchUsers, type UserSearchResult } from '@/lib/api/friends';
-
 dayjs.extend(relativeTime);
 dayjs.locale('vi');
-
 type FilterType = 'Post' | 'Account';
-
 export default function SearchScreen() {
   const [query, setQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterType>('Account');
@@ -34,7 +30,6 @@ export default function SearchScreen() {
   const [postResults, setPostResults] = useState<PostDto[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedUser, setSelectedUser] = useState<{ id: number; name: string } | null>(null);
-
   // Debounced search
   useEffect(() => {
     if (!query.trim()) {
@@ -42,7 +37,6 @@ export default function SearchScreen() {
       setPostResults([]);
       return;
     }
-
     // Backend requires at least 2 characters
     if (query.trim().length < 2) {
       setUserResults([]);
@@ -50,7 +44,6 @@ export default function SearchScreen() {
       setLoading(false);
       return;
     }
-
     const timer = setTimeout(async () => {
       setLoading(true);
       try {
@@ -66,32 +59,25 @@ export default function SearchScreen() {
           );
           setPostResults(filtered);
         }
-      } catch (error) {
-        console.error('Search error:', error);
-        setUserResults([]);
+      } catch (error) {setUserResults([]);
         setPostResults([]);
       } finally {
         setLoading(false);
       }
     }, 500); // Debounce 500ms
-
     return () => clearTimeout(timer);
   }, [query, activeFilter]);
-
   const handleUserPress = (user: UserSearchResult) => {
     // Navigate to user profile or handle action
     router.push(`/(tabs)/profile/${user.id}` as any);
   };
-
   const handlePostPress = (post: PostDto) => {
     router.push(`/(tabs)/post-detail?postId=${post.id}` as any);
   };
-
   const handleSendFriendRequest = (userId: number, userName: string) => {
     setSelectedUser({ id: userId, name: userName });
     setModalVisible(true);
   };
-
   const handleModalSuccess = async () => {
     // Refresh search results after sending request
     if (query.trim().length >= 2 && activeFilter === 'Account') {
@@ -99,14 +85,11 @@ export default function SearchScreen() {
       try {
         const results = await searchUsers(query);
         setUserResults(results);
-      } catch (error) {
-        console.error('Search error:', error);
-      } finally {
+      } catch (error) {} finally {
         setLoading(false);
       }
     }
   };
-
   const renderUserItem = (item: UserSearchResult) => {
     const getActionButton = () => {
       switch (item.relationshipStatus) {
@@ -121,21 +104,18 @@ export default function SearchScreen() {
               <Text style={styles.followButtonText}>Kết bạn</Text>
             </TouchableOpacity>
           );
-
         case 'FRIEND':
           return (
             <View style={[styles.actionButton, styles.friendButton]}>
               <Text style={styles.friendButtonText}>Bạn bè</Text>
             </View>
           );
-
         case 'REQUEST_SENT':
           return (
             <View style={[styles.actionButton, styles.disabledButton]}>
               <Text style={styles.disabledButtonText}>Đã gửi</Text>
             </View>
           );
-
         case 'REQUEST_RECEIVED':
           return (
             <TouchableOpacity
@@ -147,12 +127,10 @@ export default function SearchScreen() {
               <Text style={styles.followButtonText}>Chấp nhận</Text>
             </TouchableOpacity>
           );
-
         default:
           return null;
       }
     };
-
     return (
       <TouchableOpacity style={styles.itemContainer} onPress={() => handleUserPress(item)}>
         <Image
@@ -167,7 +145,6 @@ export default function SearchScreen() {
       </TouchableOpacity>
     );
   };
-
   const renderPostItem = (item: PostDto) => {
     return (
       <TouchableOpacity style={styles.postContainer} onPress={() => handlePostPress(item)}>
@@ -207,7 +184,6 @@ export default function SearchScreen() {
       </TouchableOpacity>
     );
   };
-
   const renderResults = () => {
     if (loading && query.trim()) {
       return (
@@ -217,7 +193,6 @@ export default function SearchScreen() {
         </View>
       );
     }
-
     if (!query.trim()) {
       return (
         <View style={styles.emptyState}>
@@ -229,7 +204,6 @@ export default function SearchScreen() {
         </View>
       );
     }
-
     if (query.trim().length < 2) {
       return (
         <View style={styles.emptyState}>
@@ -241,7 +215,6 @@ export default function SearchScreen() {
         </View>
       );
     }
-
     if (activeFilter === 'Account') {
       if (userResults.length === 0) {
         return (
@@ -252,7 +225,6 @@ export default function SearchScreen() {
           </View>
         );
       }
-
       return (
         <FlatList
           data={userResults}
@@ -263,7 +235,6 @@ export default function SearchScreen() {
         />
       );
     }
-
     if (activeFilter === 'Post') {
       if (postResults.length === 0) {
         return (
@@ -274,7 +245,6 @@ export default function SearchScreen() {
           </View>
         );
       }
-
       return (
         <FlatList
           data={postResults}
@@ -285,10 +255,8 @@ export default function SearchScreen() {
         />
       );
     }
-
     return null;
   };
-
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.container}>
@@ -317,7 +285,6 @@ export default function SearchScreen() {
             )}
           </View>
         </View>
-
         {/* Filter Buttons */}
         <View style={styles.filterContainer}>
           <TouchableOpacity
@@ -331,7 +298,7 @@ export default function SearchScreen() {
                 styles.filterText,
                 activeFilter === 'Post' && styles.activeFilterText,
               ]}>
-              Post
+              Bài viết
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -345,14 +312,12 @@ export default function SearchScreen() {
                 styles.filterText,
                 activeFilter === 'Account' && styles.activeFilterText,
               ]}>
-              Account
+              Tài khoản
             </Text>
           </TouchableOpacity>
         </View>
-
         {/* Results */}
         {renderResults()}
-
         {/* Send Friend Request Modal */}
         {selectedUser && (
           <SendFriendRequestModal
@@ -370,7 +335,6 @@ export default function SearchScreen() {
     </SafeAreaView>
   );
 }
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,

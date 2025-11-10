@@ -4,14 +4,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ThemedText } from '@/components/themed-text';
 import { Ionicons } from '@expo/vector-icons';
-
 const { width, height } = Dimensions.get('window');
-
 export default function Intro1Screen() {
   const handleGetStarted = () => {
     router.push('/(auth)/intro-2');
   };
-
   return (
     <LinearGradient
       colors={['#F0F8FF', '#F5F5F0']}
@@ -23,39 +20,29 @@ export default function Intro1Screen() {
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
-          {/* Image Collage */}
           <View style={styles.imageCollage}>
-            {/* Right-back image */}
             <View style={[styles.imageCard, styles.imageCard3]}>
               <View style={styles.placeholderImage}>
                 <Ionicons name="person" size={40} color="#87CEEB" />
               </View>
             </View>
-            
-            {/* Top-middle image */}
             <View style={[styles.imageCard, styles.imageCard2]}>
               <View style={styles.placeholderImage}>
                 <Ionicons name="people" size={40} color="#87CEEB" />
               </View>
             </View>
-            
-            {/* Left-front image */}
             <View style={[styles.imageCard, styles.imageCard1]}>
               <View style={styles.placeholderImage}>
                 <Ionicons name="camera" size={40} color="#87CEEB" />
               </View>
             </View>
           </View>
-
-          {/* Welcome Text */}
           <View style={styles.textContainer}>
             <ThemedText style={styles.title}>Welcome to Commuin</ThemedText>
             <ThemedText style={styles.subtitle}>
               Connect, share, and grow with a vibrant community designed for meaningful social interactions.
             </ThemedText>
           </View>
-
-          {/* Feature List */}
           <View style={styles.featuresContainer}>
             <View style={styles.featureCard}>
               <View style={styles.featureIcon}>
@@ -65,7 +52,6 @@ export default function Intro1Screen() {
                 Connect with real people, build bonds.
               </ThemedText>
             </View>
-
             <View style={styles.featureCard}>
               <View style={styles.featureIcon}>
                 <Ionicons name="trending-up" size={24} color="#4A90E2" />
@@ -74,7 +60,6 @@ export default function Intro1Screen() {
                 Explore trending topics, stay updated.
               </ThemedText>
             </View>
-
             <View style={styles.featureCard}>
               <View style={styles.featureIcon}>
                 <Ionicons name="megaphone" size={24} color="#4A90E2" />
@@ -85,8 +70,6 @@ export default function Intro1Screen() {
             </View>
           </View>
         </ScrollView>
-
-        {/* Call to Action Button - Fixed at bottom */}
         <View style={styles.buttonContainer}>
           <TouchableOpacity style={styles.button} onPress={handleGetStarted}>
             <ThemedText style={styles.buttonText}>Let's Get Started</ThemedText>
@@ -96,7 +79,6 @@ export default function Intro1Screen() {
     </LinearGradient>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,

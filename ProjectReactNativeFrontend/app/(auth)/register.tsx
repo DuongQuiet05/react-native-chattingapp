@@ -12,7 +12,6 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { register } from '@/lib/api/auth';
@@ -23,28 +22,23 @@ export default function RegisterScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
-
   const handleRegister = async () => {
     // Validation
     if (!username || !phoneNumber || !password) {
       Alert.alert('Lỗi', 'Vui lòng điền đầy đủ thông tin');
       return;
     }
-
     if (password !== confirmPassword) {
       Alert.alert('Lỗi', 'Mật khẩu không khớp');
       return;
     }
-
     // Validate phone format (0339533380 or +84339533380)
     const phoneRegex = /^(0\d{9}|\+84\d{9})$/;
     if (!phoneRegex.test(phoneNumber)) {
       Alert.alert('Lỗi', 'Số điện thoại không hợp lệ. VD: 0339533380');
       return;
     }
-
     setLoading(true);
-
     try {
       const response = await register({
         username,
@@ -52,11 +46,7 @@ export default function RegisterScreen() {
         password,
         confirmPassword,
         displayName: displayName || username,
-      });
-
-      console.log('✅ Đăng ký thành công:', response);
-
-      Alert.alert(
+      });Alert.alert(
         'Thành công',
         'Tài khoản đã được tạo! Vui lòng xác thực số điện thoại.',
         [
@@ -74,20 +64,15 @@ export default function RegisterScreen() {
           },
         ]
       );
-    } catch (error: any) {
-      console.error('❌ Lỗi đăng ký:', error.response?.data || error.message);
-
-      const errorMsg =
+    } catch (error: any) {const errorMsg =
         error.response?.data?.message ||
         error.response?.data?.error ||
         'Không thể kết nối tới server';
-
       Alert.alert('Đăng ký thất bại', errorMsg);
     } finally {
       setLoading(false);
     }
   };
-
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
@@ -98,7 +83,6 @@ export default function RegisterScreen() {
           <ThemedText type="title" style={styles.title}>
             Đăng ký tài khoản
           </ThemedText>
-
           <View style={styles.fieldGroup}>
             <ThemedText style={styles.label}>Tên đăng nhập *</ThemedText>
             <TextInput
@@ -110,7 +94,6 @@ export default function RegisterScreen() {
               editable={!loading}
             />
           </View>
-
           <View style={styles.fieldGroup}>
             <ThemedText style={styles.label}>Số điện thoại *</ThemedText>
             <TextInput
@@ -122,7 +105,6 @@ export default function RegisterScreen() {
               editable={!loading}
             />
           </View>
-
           <View style={styles.fieldGroup}>
             <ThemedText style={styles.label}>Tên hiển thị</ThemedText>
             <TextInput
@@ -133,7 +115,6 @@ export default function RegisterScreen() {
               editable={!loading}
             />
           </View>
-
           <View style={styles.fieldGroup}>
             <ThemedText style={styles.label}>Mật khẩu *</ThemedText>
             <TextInput
@@ -145,7 +126,6 @@ export default function RegisterScreen() {
               editable={!loading}
             />
           </View>
-
           <View style={styles.fieldGroup}>
             <ThemedText style={styles.label}>Xác nhận mật khẩu *</ThemedText>
             <TextInput
@@ -157,7 +137,6 @@ export default function RegisterScreen() {
               editable={!loading}
             />
           </View>
-
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
             disabled={loading}
@@ -168,7 +147,6 @@ export default function RegisterScreen() {
               <ThemedText style={styles.buttonText}>Đăng ký</ThemedText>
             )}
           </TouchableOpacity>
-
           <TouchableOpacity
             style={styles.linkButton}
             onPress={() => router.push('/(auth)/login')}
@@ -183,7 +161,6 @@ export default function RegisterScreen() {
     </SafeAreaView>
   );
 }
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,

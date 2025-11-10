@@ -1,10 +1,8 @@
 package org.example.zaloapi.dto;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 /**
  * DTO cơ bản cho thông tin user (dùng chung)
  */
@@ -19,4 +17,3 @@ public class UserBasicDto {
     private String avatarUrl;
     private String status;
 }
-

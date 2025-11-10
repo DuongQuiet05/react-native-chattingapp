@@ -20,18 +20,14 @@ import { router } from 'expo-router';
 import { useAuth } from '@/contexts/auth-context';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-
 dayjs.extend(relativeTime);
-
 export default function BlockedUsersScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   const { data: blockedData, isLoading, refetch } = useBlockedUsers();
   const unblockUser = useUnblockUser();
-
   const blockedUsers = blockedData?.blockedUsers || [];
   const blockedUserIds = blockedData?.blockedUserIds || [];
-
   const handleUnblock = async (userId: number, userName: string) => {
     Alert.alert('Bỏ chặn', `Bạn có chắc chắn muốn bỏ chặn ${userName}?`, [
       { text: 'Hủy', style: 'cancel' },
@@ -50,7 +46,6 @@ export default function BlockedUsersScreen() {
       },
     ]);
   };
-
   if (isLoading) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }, styles.center]}>
@@ -58,7 +53,6 @@ export default function BlockedUsersScreen() {
       </View>
     );
   }
-
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
@@ -69,7 +63,6 @@ export default function BlockedUsersScreen() {
         <Text style={[styles.headerTitle, { color: colors.text }]}>Người dùng bị chặn</Text>
         <View style={{ width: 24 }} />
       </View>
-
       <ScrollView
         style={styles.body}
         refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} />}>
@@ -124,7 +117,6 @@ export default function BlockedUsersScreen() {
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -203,4 +195,3 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
 });
-

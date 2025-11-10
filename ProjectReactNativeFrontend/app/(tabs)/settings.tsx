@@ -27,11 +27,8 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadImage } from '@/lib/api/upload-service';
 import { Platform, ActionSheetIOS } from 'react-native';
-
 dayjs.extend(relativeTime);
-
 const { width } = Dimensions.get('window');
-
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
   const colorScheme = useColorScheme();
@@ -50,7 +47,6 @@ export default function ProfileScreen() {
     dateOfBirth: '',
     gender: '',
   });
-
   useEffect(() => {
     if (profile) {
       setEditForm({
@@ -61,7 +57,6 @@ export default function ProfileScreen() {
       });
     }
   }, [profile]);
-
   const handleSignOut = async () => {
     Alert.alert('Đăng xuất', 'Bạn có chắc chắn muốn đăng xuất?', [
       { text: 'Hủy', style: 'cancel' },
@@ -71,17 +66,14 @@ export default function ProfileScreen() {
         onPress: async () => {
           try {
             await signOut();
-            // Redirect trực tiếp về intro sau khi logout thành công
             router.replace('/(auth)/intro-1');
           } catch (error) {
-            // Nếu có lỗi, chuyển về trang đăng nhập
             router.replace('/(auth)/login');
           }
         },
       },
     ]);
   };
-
   const handleUpdateProfile = async () => {
     try {
       await updateProfile.mutateAsync(editForm);
@@ -92,7 +84,6 @@ export default function ProfileScreen() {
       Alert.alert('Lỗi', 'Không thể cập nhật profile');
     }
   };
-
   const handlePickImage = async () => {
     try {
       // Show action sheet to choose between camera and library
@@ -125,15 +116,11 @@ export default function ProfileScreen() {
           { cancelable: true }
         );
       }
-    } catch (error) {
-      console.error('Error showing image picker options:', error);
-    }
+    } catch (error) {}
   };
-
   const pickAndUploadImage = async (source: 'camera' | 'library') => {
     try {
       setUploading(true);
-
       // Request permissions
       if (source === 'camera') {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -150,7 +137,6 @@ export default function ProfileScreen() {
           return;
         }
       }
-
       // Launch image picker
       const pickerOptions: ImagePicker.ImagePickerOptions = {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -158,52 +144,40 @@ export default function ProfileScreen() {
         aspect: [1, 1],
         quality: 0.8,
       };
-
       let result: ImagePicker.ImagePickerResult;
       if (source === 'camera') {
         result = await ImagePicker.launchCameraAsync(pickerOptions);
       } else {
         result = await ImagePicker.launchImageLibraryAsync(pickerOptions);
       }
-
       if (result.canceled || !result.assets[0]) {
         setUploading(false);
         return;
       }
-
       const asset = result.assets[0];
-      
       // Upload image to server
       const uploadResult = await uploadImage({
         uri: asset.uri,
         name: asset.fileName || `avatar_${Date.now()}.jpg`,
         type: asset.mimeType || 'image/jpeg',
       });
-
-      // Update profile with new avatar URL
       await updateProfile.mutateAsync({
         avatarUrl: uploadResult.fileUrl,
       });
-
       // Refresh profile data
       await refetch();
-
       Alert.alert('Thành công', 'Đã cập nhật ảnh đại diện');
-    } catch (error: any) {
-      console.error('Error uploading avatar:', error);
-      Alert.alert('Lỗi', error.message || 'Không thể cập nhật ảnh đại diện');
+    } catch (error: any) {Alert.alert('Lỗi', error.message || 'Không thể cập nhật ảnh đại diện');
     } finally {
       setUploading(false);
     }
   };
-
   const formatNumber = (num: number) => {
     if (num >= 1000) {
       return (num / 1000).toFixed(1).replace('.', ',') + 'K';
     }
     return num.toString();
   };
-
   if (isLoading) {
     return (
       <View style={[styles.container, styles.center]}>
@@ -211,7 +185,6 @@ export default function ProfileScreen() {
       </View>
     );
   }
-
   // Filter out hidden posts (user can see their own hidden posts, but not others')
   const posts = (postsData?.content || []).filter((post) => {
     // If viewing own profile, show all posts (including hidden ones)
@@ -224,7 +197,6 @@ export default function ProfileScreen() {
   const postCount = posts.length; // Use filtered count
   const followersCount = 2800; // Mock data - có thể thay bằng API sau
   const followingCount = friends?.length || 892;
-
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
@@ -239,7 +211,6 @@ export default function ProfileScreen() {
           <Ionicons name="ellipsis-vertical" size={20} color="#000000" />
         </TouchableOpacity>
       </View>
-
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} />}>
@@ -272,62 +243,66 @@ export default function ProfileScreen() {
             <View style={styles.statsContainer}>
               <View style={styles.statItem}>
                 <Text style={styles.statNumber}>{postCount}</Text>
-                <Text style={styles.statLabel}>Post</Text>
+                <Text style={styles.statLabel}>Bài viết</Text>
               </View>
               <View style={styles.statItem}>
                 <Text style={styles.statNumber}>{formatNumber(followersCount)}</Text>
-                <Text style={styles.statLabel}>Followers</Text>
+                <Text style={styles.statLabel}>Người theo dõi</Text>
               </View>
               <View style={styles.statItem}>
                 <Text style={styles.statNumber}>{followingCount}</Text>
-                <Text style={styles.statLabel}>Following</Text>
+                <Text style={styles.statLabel}>Đang theo dõi</Text>
               </View>
             </View>
           </View>
-
           {/* Name and Bio */}
           <Text style={styles.name}>
-            {profile?.displayName || user?.displayName || 'No name'}
+            {profile?.displayName || user?.displayName || 'Chưa có tên'}
           </Text>
           {profile?.bio && (
             <Text style={styles.bio}>{profile.bio}</Text>
           )}
-
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
             <TouchableOpacity style={styles.actionButton} onPress={() => setShowEditModal(true)}>
-              <Text style={styles.actionButtonText}>Edit Profile</Text>
+              <Text style={styles.actionButtonText}>Chỉnh sửa hồ sơ</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionButton}>
-              <Text style={styles.actionButtonText}>Share profile</Text>
+              <Text style={styles.actionButtonText}>Chia sẻ hồ sơ</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionIconButton}>
               <Ionicons name="person-add-outline" size={20} color="#000000" />
             </TouchableOpacity>
           </View>
         </View>
-
         {/* Tabs */}
         <View style={styles.tabsContainer}>
-          {(['Activity', 'Post', 'Tagged', 'Media'] as const).map((tab) => (
-            <TouchableOpacity
-              key={tab}
-              style={[
-                styles.tab,
-                activeTab === tab && styles.activeTab,
-              ]}
-              onPress={() => setActiveTab(tab)}>
-              <Text
+          {(['Activity', 'Post', 'Tagged', 'Media'] as const).map((tab) => {
+            const tabLabels: Record<string, string> = {
+              'Activity': 'Hoạt động',
+              'Post': 'Bài viết',
+              'Tagged': 'Đã gắn thẻ',
+              'Media': 'Phương tiện',
+            };
+            return (
+              <TouchableOpacity
+                key={tab}
                 style={[
-                  styles.tabText,
-                  activeTab === tab && styles.activeTabText,
-                ]}>
-                {tab}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                  styles.tab,
+                  activeTab === tab && styles.activeTab,
+                ]}
+                onPress={() => setActiveTab(tab)}>
+                <Text
+                  style={[
+                    styles.tabText,
+                    activeTab === tab && styles.activeTabText,
+                  ]}>
+                  {tabLabels[tab] || tab}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
-
         {/* Posts Feed */}
         {activeTab === 'Post' && (
           <View style={styles.postsContainer}>
@@ -345,7 +320,7 @@ export default function ProfileScreen() {
                       />
                       <View style={styles.postAuthorInfo}>
                         <Text style={styles.postAuthorName}>
-                          {post.authorName || profile?.displayName || 'User'}
+                          {post.authorName || profile?.displayName || 'Người dùng'}
                         </Text>
                         <Text style={styles.postTime}>
                           {dayjs(post.createdAt).fromNow()}
@@ -356,12 +331,10 @@ export default function ProfileScreen() {
                       <Ionicons name="ellipsis-vertical" size={20} color="#000000" />
                     </TouchableOpacity>
                   </View>
-
                   {/* Post Content */}
                   {post.content && (
                     <Text style={styles.postContent}>{post.content}</Text>
                   )}
-
                   {/* Post Image */}
                   {post.mediaUrls && post.mediaUrls.length > 0 && (
                     <Image
@@ -370,7 +343,6 @@ export default function ProfileScreen() {
                       resizeMode="cover"
                     />
                   )}
-
                   {/* Engagement Metrics */}
                   <View style={styles.postEngagement}>
                     <View style={styles.engagementItem}>
@@ -414,7 +386,6 @@ export default function ProfileScreen() {
             )}
           </View>
         )}
-
         {/* Activity Tab - Empty state for now */}
         {activeTab === 'Activity' && (
           <View style={styles.emptyState}>
@@ -422,7 +393,6 @@ export default function ProfileScreen() {
             <Text style={styles.emptyText}>Chưa có hoạt động nào</Text>
           </View>
         )}
-
         {/* Tagged Tab - Empty state for now */}
         {activeTab === 'Tagged' && (
           <View style={styles.emptyState}>
@@ -430,7 +400,6 @@ export default function ProfileScreen() {
             <Text style={styles.emptyText}>Chưa có bài viết được tag</Text>
           </View>
         )}
-
         {/* Media Tab - Empty state for now */}
         {activeTab === 'Media' && (
           <View style={styles.emptyState}>
@@ -439,7 +408,6 @@ export default function ProfileScreen() {
           </View>
         )}
       </ScrollView>
-
       {/* Edit Profile Modal */}
       <Modal visible={showEditModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
@@ -461,12 +429,12 @@ export default function ProfileScreen() {
                 />
               </View>
               <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Bio</Text>
+                <Text style={styles.inputLabel}>Giới thiệu</Text>
                 <TextInput
                   style={[styles.input, styles.textArea]}
                   value={editForm.bio}
                   onChangeText={(text) => setEditForm({ ...editForm, bio: text })}
-                  placeholder="Nhập bio"
+                  placeholder="Nhập giới thiệu"
                   multiline
                   numberOfLines={4}
                   textAlignVertical="top"
@@ -511,7 +479,6 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
-
       {/* Settings Modal */}
       <Modal visible={showSettingsModal} animationType="slide" transparent>
         <TouchableOpacity
@@ -524,7 +491,6 @@ export default function ProfileScreen() {
             style={styles.settingsModalContent}>
             {/* Drag Handle */}
             <View style={styles.dragHandle} />
-
             {/* Settings Options */}
             <TouchableOpacity
               style={styles.settingsOption}
@@ -534,11 +500,10 @@ export default function ProfileScreen() {
               }}>
               <View style={styles.settingsOptionLeft}>
                 <Ionicons name="lock-closed-outline" size={24} color="#000000" />
-                <Text style={styles.settingsOptionText}>Privacy Settings</Text>
+                <Text style={styles.settingsOptionText}>Cài đặt quyền riêng tư</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#CCCCCC" />
             </TouchableOpacity>
-
             <TouchableOpacity
               style={styles.settingsOption}
               onPress={() => {
@@ -547,13 +512,11 @@ export default function ProfileScreen() {
               }}>
               <View style={styles.settingsOptionLeft}>
                 <Ionicons name="person-remove-outline" size={24} color="#000000" />
-                <Text style={styles.settingsOptionText}>Blocked Users</Text>
+                <Text style={styles.settingsOptionText}>Người dùng đã chặn</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#CCCCCC" />
             </TouchableOpacity>
-
             <View style={styles.settingsDivider} />
-
             <TouchableOpacity
               style={styles.settingsOption}
               onPress={() => {
@@ -573,7 +536,6 @@ export default function ProfileScreen() {
     </SafeAreaView>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,

@@ -5,35 +5,27 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Image, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
-
 interface UserSearchItemProps {
   user: UserSearchResult;
   onSendRequest: (userId: number, userName: string) => void;
   onAcceptRequest: (requestId: number) => void;
 }
-
 export function UserSearchItem({
   user,
   onSendRequest,
   onAcceptRequest,
 }: UserSearchItemProps) {
   const [loadingConversation, setLoadingConversation] = useState(false);
-
   const handleMessage = async () => {
     try {
       setLoadingConversation(true);
-      // Tạo hoặc lấy conversation với người này
       const conversation = await getOrCreatePrivateConversation(user.id);
-      // Navigate đến trang chat với conversationId đúng
       router.push(`/chat/${conversation.id}` as any);
-    } catch (error: any) {
-      console.error('Error getting conversation:', error);
-      Alert.alert('Lỗi', 'Không thể tạo cuộc trò chuyện. Vui lòng thử lại.');
+    } catch (error: any) {Alert.alert('Lỗi', 'Không thể tạo cuộc trò chuyện. Vui lòng thử lại.');
     } finally {
       setLoadingConversation(false);
     }
   };
-
   const getStatusColor = () => {
     switch (user.relationshipStatus) {
       case 'FRIEND':
@@ -46,7 +38,6 @@ export function UserSearchItem({
         return '#0a84ff';
     }
   };
-
   const renderActionButton = () => {
     switch (user.relationshipStatus) {
       case 'STRANGER':
@@ -57,7 +48,6 @@ export function UserSearchItem({
             <ThemedText style={styles.buttonText}>Kết bạn</ThemedText>
           </TouchableOpacity>
         );
-
       case 'FRIEND':
         return (
           <TouchableOpacity
@@ -71,14 +61,12 @@ export function UserSearchItem({
             )}
           </TouchableOpacity>
         );
-
       case 'REQUEST_SENT':
         return (
           <View style={[styles.button, styles.disabledButton]}>
             <ThemedText style={styles.disabledButtonText}>Đã gửi</ThemedText>
           </View>
         );
-
       case 'REQUEST_RECEIVED':
         return (
           <TouchableOpacity
@@ -91,12 +79,10 @@ export function UserSearchItem({
             <ThemedText style={styles.buttonText}>Chấp nhận</ThemedText>
           </TouchableOpacity>
         );
-
       default:
         return null;
     }
   };
-
   return (
     <ThemedView style={styles.container}>
       <TouchableOpacity
@@ -108,7 +94,6 @@ export function UserSearchItem({
           source={{ uri: user.avatarUrl || 'https://i.pravatar.cc/150' }}
           style={styles.avatar}
         />
-
         <View style={styles.info}>
           <ThemedText style={styles.displayName}>{user.displayName}</ThemedText>
           <ThemedText style={styles.username}>@{user.username}</ThemedText>
@@ -122,12 +107,10 @@ export function UserSearchItem({
           )}
         </View>
       </TouchableOpacity>
-
       <View style={styles.actionContainer}>{renderActionButton()}</View>
     </ThemedView>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',

@@ -1,13 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { blockUser, checkBlocked, getBlockedUsers, unblockUser } from '@/lib/api/blocks';
-
 export function useBlockedUsers() {
   return useQuery({
     queryKey: ['blockedUsers'],
     queryFn: () => getBlockedUsers(),
   });
 }
-
 export function useCheckBlocked(userId: number) {
   return useQuery({
     queryKey: ['checkBlocked', userId],
@@ -15,10 +13,8 @@ export function useCheckBlocked(userId: number) {
     enabled: !!userId,
   });
 }
-
 export function useBlockUser() {
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: (userId: number) => blockUser(userId),
     onSuccess: () => {
@@ -30,10 +26,8 @@ export function useBlockUser() {
     },
   });
 }
-
 export function useUnblockUser() {
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: (userId: number) => unblockUser(userId),
     onSuccess: () => {
@@ -44,4 +38,3 @@ export function useUnblockUser() {
     },
   });
 }
-

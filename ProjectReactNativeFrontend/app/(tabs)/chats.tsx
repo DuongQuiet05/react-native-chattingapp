@@ -2,10 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, TouchableOpacity, View, ScrollView, Image, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
 import { ConversationListItem } from '@/components/conversation-list-item';
 import { CreateChatModal } from '@/components/create-chat-modal';
 import { ThemedText } from '@/components/themed-text';
@@ -13,17 +12,14 @@ import { ThemedView } from '@/components/themed-view';
 import { conversationQueryKeys, useConversations } from '@/hooks/api/use-conversations';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import type { ConversationSummary } from '@/lib/api/conversations';
-// Temporarily disabled to prevent infinite loops
-// import { useStomp } from '@/providers/stomp-provider';
+import { useStomp } from '@/providers/stomp-provider';
+import { useAuth } from '@/contexts/auth-context';
 import { getFriendsList, type FriendProfile } from '@/lib/api/friends';
-
 export default function ChatsScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  // Temporarily disabled to prevent infinite loops
-  // const { connected, subscribe } = useStomp();
-  const connected = false;
-  const subscribe = () => () => {}; // Mock function
+  const { user } = useAuth();
+  const { connected, subscribe } = useStomp();
   const colorScheme = useColorScheme();
   const {
     data: conversations,
@@ -35,14 +31,46 @@ export default function ChatsScreen() {
   const [friends, setFriends] = useState<FriendProfile[]>([]);
   const [loadingFriends, setLoadingFriends] = useState(false);
   const [createChatModalVisible, setCreateChatModalVisible] = useState(false);
-
+  
+  // Sort conversations: unread messages first, then by lastMessageAt (newest first)
+  const sortedConversations = useMemo(() => {
+    if (!conversations) {
+      return [];
+    }
+    const sorted = [...conversations];
+    sorted.sort((a, b) => {
+      const aUnread = (a.unreadCount || 0) > 0;
+      const bUnread = (b.unreadCount || 0) > 0;
+      if (aUnread !== bUnread) {
+        return aUnread ? -1 : 1;
+      }
+      const aTime = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+      const bTime = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+      return bTime - aTime;
+    });
+    return sorted;
+  }, [conversations]);
+  
   const handlePressConversation = useCallback(
     (conversationId: number) => {
+      // Mark conversation as read when clicking on it
+      queryClient.setQueryData<ConversationSummary[] | undefined>(
+        conversationQueryKeys.all,
+        (previous) => {
+          if (!previous) {
+            return previous;
+          }
+          return previous.map((item) =>
+            item.id === conversationId
+              ? { ...item, unreadCount: 0 }
+              : item,
+          );
+        },
+      );
       router.push(`/chat/${conversationId}`);
     },
-    [router],
+    [router, queryClient],
   );
-
   const handleCreateChatSuccess = useCallback(
     (conversationId: number) => {
       setCreateChatModalVisible(false);
@@ -50,7 +78,6 @@ export default function ChatsScreen() {
     },
     [router],
   );
-
   useFocusEffect(
     useCallback(() => {
       void refetch();
@@ -65,9 +92,7 @@ export default function ChatsScreen() {
             setFriends([]);
           }
         })
-        .catch((error) => {
-          console.warn('Could not load friends:', error);
-          // Don't show alert, just set empty array
+        .catch((error) => {// Don't show alert, just set empty array
           setFriends([]);
         })
         .finally(() => {
@@ -75,41 +100,110 @@ export default function ChatsScreen() {
         });
     }, [refetch]),
   );
-
+  // Subscribe to conversation updates from WebSocket
   useEffect(() => {
-    if (!connected) {
+    if (!connected || !user || !conversations) {
       return;
     }
 
-    const unsubscribe = subscribe('/user/queue/conversations', (message) => {
+    // Subscribe to conversation list updates (if backend sends them)
+    const unsubscribeConversations = subscribe('/user/queue/conversations', (message) => {
       try {
-        const payload = JSON.parse(message.body) as ConversationSummary;
-
+        const payload = JSON.parse(message.body);
+        console.log('📬 [Chats] Received conversation update:', payload);
+        
         queryClient.setQueryData<ConversationSummary[] | undefined>(
           conversationQueryKeys.all,
           (previous) => {
             if (!previous) {
               return [payload];
             }
-
             const index = previous.findIndex((item) => item.id === payload.id);
             if (index === -1) {
+              // New conversation, add to beginning
               return [payload, ...previous];
             }
-
-            const copy = [...previous];
-            copy[index] = { ...copy[index], ...payload };
-            return copy;
+            // Update existing conversation
+            const updated = [...previous];
+            updated[index] = { ...updated[index], ...payload };
+            return updated;
           },
         );
       } catch (error) {
-        console.warn('Không thể phân tích dữ liệu conversation realtime', error);
+        console.error('❌ [Chats] Error processing conversation update:', error);
       }
     });
 
-    return unsubscribe;
-  }, [connected, queryClient, subscribe]);
+    // Subscribe to all conversation topics to receive real-time message updates
+    const unsubscribes: Array<() => void> = [unsubscribeConversations];
+    
+    conversations.forEach((conversation) => {
+      const destination = `/topic/conversations/${conversation.id}`;
+      const unsubscribe = subscribe(destination, (message) => {
+        try {
+          const payload = JSON.parse(message.body);
+          console.log('📬 [Chats] Received message from conversation:', conversation.id, payload);
+          
+          // Only process if action is SEND (new message)
+          if (payload.action !== 'SEND') {
+            return;
+          }
 
+          const conversationId = payload.conversationId;
+          const senderId = payload.senderId;
+          const isFromCurrentUser = senderId === user.id;
+
+          // Get preview text based on message type
+          let previewText = payload.content || '';
+          if (payload.messageType === 'IMAGE') {
+            previewText = '📷 Đã gửi một ảnh';
+          } else if (payload.messageType === 'VIDEO') {
+            previewText = '🎥 Đã gửi một video';
+          } else if (payload.messageType === 'FILE') {
+            previewText = '📎 Đã gửi một file';
+          }
+
+          queryClient.setQueryData<ConversationSummary[] | undefined>(
+            conversationQueryKeys.all,
+            (previous) => {
+              if (!previous) {
+                return previous;
+              }
+
+              const index = previous.findIndex((item) => item.id === conversationId);
+              if (index === -1) {
+                // Conversation not in list
+                return previous;
+              }
+
+              const updated = [...previous];
+              const conversation = updated[index];
+              
+              // Update conversation with new message info
+              updated[index] = {
+                ...conversation,
+                lastMessagePreview: previewText,
+                lastMessageAt: payload.sentAt,
+                // Increment unread count if message is not from current user
+                unreadCount: isFromCurrentUser 
+                  ? (conversation.unreadCount || 0)
+                  : (conversation.unreadCount || 0) + 1,
+              };
+
+              return updated;
+            },
+          );
+        } catch (error) {
+          console.error('❌ [Chats] Error processing message update:', error);
+        }
+      });
+      unsubscribes.push(unsubscribe);
+    });
+
+    return () => {
+      unsubscribes.forEach((unsub) => unsub());
+    };
+  }, [connected, queryClient, subscribe, user, conversations]);
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -119,7 +213,6 @@ export default function ChatsScreen() {
       </SafeAreaView>
     );
   }
-
   if (isError) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -132,13 +225,12 @@ export default function ChatsScreen() {
       </SafeAreaView>
     );
   }
-
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ThemedView style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Chat</Text>
+          <Text style={styles.headerTitle}>Trò chuyện</Text>
           <View style={styles.headerRight}>
             <TouchableOpacity
               style={styles.searchButton}
@@ -152,12 +244,11 @@ export default function ChatsScreen() {
               activeOpacity={0.7}>
               <View style={styles.newChatButtonContent}>
                 <Ionicons name="add" size={20} color="#fff" />
-                <Text style={styles.newChatButtonText}>New Chat</Text>
+                <Text style={styles.newChatButtonText}>Tin nhắn mới</Text>
               </View>
             </TouchableOpacity>
           </View>
         </View>
-
         {/* Stories Section */}
         {friends.length > 0 && (
           <View style={styles.storiesContainer}>
@@ -182,10 +273,9 @@ export default function ChatsScreen() {
             </ScrollView>
           </View>
         )}
-
         {/* Conversations List */}
         <FlatList
-          data={conversations ?? []}
+          data={sortedConversations}
           keyExtractor={(item) => item.id.toString()}
           renderItem={({ item }) => (
             <ConversationListItem conversation={item} onPress={handlePressConversation} />
@@ -203,7 +293,6 @@ export default function ChatsScreen() {
           }
         />
       </ThemedView>
-
       {/* Create Chat Modal */}
       <CreateChatModal
         visible={createChatModalVisible}
@@ -213,7 +302,6 @@ export default function ChatsScreen() {
     </SafeAreaView>
   );
 }
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,

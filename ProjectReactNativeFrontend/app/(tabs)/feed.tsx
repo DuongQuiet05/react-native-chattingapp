@@ -19,17 +19,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFeed, useReactToPost, useRemovePostReaction } from '@/hooks/api/use-posts';
 import { useContacts } from '@/hooks/api/use-contacts';
 import { useUnreadCount } from '@/hooks/api/use-notifications';
+import { useStories } from '@/hooks/api/use-stories';
 import { router } from 'expo-router';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useAuth } from '@/contexts/auth-context';
 import { PostMediaCarousel } from '@/components/post-media-carousel';
 import { useFocusEffect } from '@react-navigation/native';
-
+import type { StoryDto } from '@/lib/api/stories';
 dayjs.extend(relativeTime);
-
 const { width } = Dimensions.get('window');
-
 const REACTION_TYPES = ['LIKE', 'LOVE', 'HAHA', 'WOW', 'SAD', 'ANGRY'] as const;
 const REACTION_EMOJIS = {
   LIKE: '👍',
@@ -39,10 +38,7 @@ const REACTION_EMOJIS = {
   SAD: '😢',
   ANGRY: '😡',
 };
-
 const GRADIENT_COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8'];
-
-// Mock communities - có thể thay bằng API sau
 const communities = [
   {
     id: '1',
@@ -71,27 +67,31 @@ const communities = [
     ],
   },
 ];
-
-function StoryItem({ story, isFirst }: { story: any; isFirst: boolean }) {
+function StoryItem({ story, isFirst, userId }: { story?: StoryDto; isFirst: boolean; userId?: number }) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-
   if (isFirst) {
     return (
-      <TouchableOpacity style={styles.storyItem}>
+      <TouchableOpacity
+        style={styles.storyItem}
+        onPress={() => router.push('/stories/create')}>
         <View style={styles.addStoryCircle}>
           <Ionicons name="add" size={20} color="#666666" />
         </View>
         <Text style={styles.storyName} numberOfLines={1}>
-          Add Story
+          Thêm Story
         </Text>
       </TouchableOpacity>
     );
   }
-
+  if (!story) return null;
+  const hasUnviewedStories = !story.isViewed && !story.isOwn;
   return (
-    <TouchableOpacity style={styles.storyItem}>
+    <TouchableOpacity
+      style={styles.storyItem}
+      onPress={() => router.push(`/stories/${story.userId}`)}>
       <View style={styles.storyCircleWrapper}>
+        {hasUnviewedStories && <View style={styles.storyRing} />}
         <View style={[styles.storyCircle, { backgroundColor: colors.card }]}>
           <Image
             source={{ uri: story.avatarUrl || 'https://i.pravatar.cc/150' }}
@@ -105,35 +105,40 @@ function StoryItem({ story, isFirst }: { story: any; isFirst: boolean }) {
     </TouchableOpacity>
   );
 }
-
 function StoriesSection() {
-  const { data: friends } = useContacts();
+  const { data: stories } = useStories();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   const { user } = useAuth();
-
-  const stories = friends?.slice(0, 8) || [];
-
+  
+  const groupedStories = stories?.reduce((acc, story) => {
+    const userId = story.userId;
+    if (!acc[userId]) {
+      acc[userId] = story;
+    }
+    return acc;
+  }, {} as Record<number, StoryDto>) || {};
+  
+  const uniqueStories = Object.values(groupedStories);
+  
   return (
     <View style={styles.storiesContainer}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.storiesContent}>
-        <StoryItem story={{}} isFirst={true} />
-        {stories.map((friend) => (
-          <StoryItem key={friend.id} story={friend} isFirst={false} />
+        <StoryItem story={undefined} isFirst={true} />
+        {uniqueStories.slice(0, 8).map((story) => (
+          <StoryItem key={story.userId} story={story} isFirst={false} userId={story.userId} />
         ))}
       </ScrollView>
     </View>
   );
 }
-
 interface PostCardProps {
   post: any;
   isVisible?: boolean; // Whether this post is currently visible on screen
 }
-
 function PostCard({ post, isVisible = false }: PostCardProps) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
@@ -141,7 +146,6 @@ function PostCard({ post, isVisible = false }: PostCardProps) {
   const reactToPost = useReactToPost();
   const removeReaction = useRemovePostReaction();
   const [showReactions, setShowReactions] = useState(false);
-
   // Check if post has video
   const hasVideo = post.mediaUrls?.some((url: string) => {
     if (!url) return false;
@@ -150,7 +154,6 @@ function PostCard({ post, isVisible = false }: PostCardProps) {
            lowerUrl.includes('/video/') ||
            ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v', '.3gp'].some(ext => lowerUrl.includes(ext));
   });
-
   const handleReaction = async (reactionType: string) => {
     if (post.userReaction === reactionType) {
       await removeReaction.mutateAsync(post.id);
@@ -159,12 +162,10 @@ function PostCard({ post, isVisible = false }: PostCardProps) {
     }
     setShowReactions(false);
   };
-
   const formatNumber = (num: number) => {
     if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
     return num.toString();
   };
-
   return (
     <View style={styles.postCard}>
       {/* Post Header */}
@@ -201,14 +202,12 @@ function PostCard({ post, isVisible = false }: PostCardProps) {
           <Ionicons name="ellipsis-vertical" size={20} color={colors.icon} />
         </TouchableOpacity>
       </View>
-
       {/* Post Content */}
       <TouchableOpacity onPress={() => router.push(`/(tabs)/post-detail?postId=${post.id}` as any)}>
         <Text style={[styles.postContent, { color: colors.text }]} numberOfLines={5}>
           {post.content}
         </Text>
       </TouchableOpacity>
-
       {/* Post Media */}
       {post.mediaUrls && post.mediaUrls.length > 0 && (
         <TouchableOpacity
@@ -230,7 +229,6 @@ function PostCard({ post, isVisible = false }: PostCardProps) {
           />
         </TouchableOpacity>
       )}
-
       {/* Location */}
       {post.location && (
         <View style={styles.locationContainer}>
@@ -238,7 +236,6 @@ function PostCard({ post, isVisible = false }: PostCardProps) {
           <Text style={[styles.locationText, { color: colors.textSecondary }]}>{post.location}</Text>
         </View>
       )}
-
       {/* Post Stats */}
       {(post.reactionCount > 0 || post.commentCount > 0) && (
         <View style={styles.postStats}>
@@ -263,7 +260,6 @@ function PostCard({ post, isVisible = false }: PostCardProps) {
           )}
         </View>
       )}
-
       {/* Post Actions */}
       <View style={styles.postActions}>
         <View style={styles.reactionContainer}>
@@ -284,7 +280,6 @@ function PostCard({ post, isVisible = false }: PostCardProps) {
             />
             <Text style={styles.actionCount}>{formatNumber(post.reactionCount || 0)}</Text>
           </TouchableOpacity>
-
           {showReactions && (
             <View style={[styles.reactionsPicker, { backgroundColor: colors.card }, Shadows.lg]}>
               {REACTION_TYPES.map((type) => (
@@ -298,24 +293,20 @@ function PostCard({ post, isVisible = false }: PostCardProps) {
             </View>
           )}
         </View>
-
         <TouchableOpacity
           style={styles.actionButton}
           onPress={() => router.push(`/(tabs)/post-detail?postId=${post.id}` as any)}>
           <Ionicons name="chatbubble-outline" size={20} color="#666666" />
           <Text style={styles.actionCount}>{formatNumber(post.commentCount || 0)}</Text>
         </TouchableOpacity>
-
         <TouchableOpacity style={styles.actionButton}>
           <Ionicons name="paper-plane-outline" size={20} color="#666666" />
           <Text style={styles.actionCount}>{formatNumber(post.shareCount || 0)}</Text>
         </TouchableOpacity>
-
         <TouchableOpacity style={styles.actionButton}>
           <Ionicons name="repeat-outline" size={20} color="#666666" />
           <Text style={styles.actionCount}>{formatNumber(post.repostCount || 0)}</Text>
         </TouchableOpacity>
-
         <TouchableOpacity style={styles.actionButton}>
           <Ionicons name="bookmark-outline" size={20} color="#666666" />
           <Text style={styles.actionCount}>{formatNumber(post.bookmarkCount || 0)}</Text>
@@ -324,18 +315,15 @@ function PostCard({ post, isVisible = false }: PostCardProps) {
     </View>
   );
 }
-
 function CommunitiesSection() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-
   const formatMembers = (count: number) => {
     if (count >= 1000) {
       return `+${(count / 1000).toFixed(1)}K`;
     }
     return `+${count}`;
   };
-
   return (
     <View style={styles.communitySection}>
       <View style={styles.communityHeader}>
@@ -378,7 +366,6 @@ function CommunitiesSection() {
     </View>
   );
 }
-
 export default function FeedScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
@@ -388,17 +375,13 @@ export default function FeedScreen() {
   const { data: unreadCount } = useUnreadCount();
   const [visiblePostIds, setVisiblePostIds] = useState<Set<number>>(new Set());
   const flatListRef = useRef<FlatList>(null);
-
   const handleRefresh = () => {
     refetch();
   };
-
   const handleCreatePost = () => {
     router.push('/(tabs)/create-post' as any);
   };
-
   const tabs = ['For You', 'Following', 'My Community'] as const;
-
   // Track visible posts for auto-play video
   const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken[] }) => {
     const visibleIds = new Set<number>();
@@ -409,11 +392,9 @@ export default function FeedScreen() {
     });
     setVisiblePostIds(visibleIds);
   }, []);
-
   const viewabilityConfig = useRef({
     itemVisiblePercentThreshold: 50, // Post is considered visible when 50% is on screen
   }).current;
-
   // Pause all videos when screen loses focus (user navigates away or switches tabs)
   useFocusEffect(
     useCallback(() => {
@@ -424,7 +405,6 @@ export default function FeedScreen() {
       };
     }, [])
   );
-
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
@@ -447,17 +427,15 @@ export default function FeedScreen() {
           </TouchableOpacity>
         </View>
       </View>
-
       {/* Search Bar */}
       <TouchableOpacity
         style={styles.searchBarContainer}
         onPress={() => router.push('/(tabs)/search' as any)}>
         <View style={styles.searchBar}>
           <Ionicons name="search" size={20} color="#999999" style={styles.searchIcon} />
-          <Text style={styles.searchPlaceholder}>Search...</Text>
+          <Text style={styles.searchPlaceholder}>Tìm kiếm...</Text>
         </View>
       </TouchableOpacity>
-
       {/* Tabs */}
       <View style={styles.tabsContainer}>
         {tabs.map((tab) => (
@@ -473,12 +451,11 @@ export default function FeedScreen() {
                 styles.tabText,
                 activeTab === tab && styles.activeTabText,
               ]}>
-              {tab === 'For You' ? 'For You' : tab === 'Following' ? 'Following' : 'My Community'}
+              {tab === 'For You' ? 'Dành cho bạn' : tab === 'Following' ? 'Đang theo dõi' : 'Cộng đồng'}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
-
       {/* Feed */}
       {isLoading && page === 0 ? (
         <View style={styles.center}>
@@ -555,7 +532,6 @@ export default function FeedScreen() {
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -695,16 +671,23 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     borderRadius: 34,
-    padding: 3,
-    backgroundColor: 'transparent',
+    position: 'relative',
+  },
+  storyRing: {
+    position: 'absolute',
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     borderWidth: 2.5,
     borderColor: '#E1306C',
   },
   storyCircle: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 30,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#fff',
   },
   storyAvatar: {
     width: '100%',

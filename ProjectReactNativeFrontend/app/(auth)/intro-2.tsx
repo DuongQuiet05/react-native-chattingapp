@@ -5,27 +5,19 @@ import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedText } from '@/components/themed-text';
 import { Ionicons } from '@expo/vector-icons';
-
 const { width, height } = Dimensions.get('window');
 const INTRO_SEEN_KEY = '@intro_seen';
-
 export default function Intro2Screen() {
   const handleGetStarted = async () => {
     try {
-      // Mark intro as seen
       await AsyncStorage.setItem(INTRO_SEEN_KEY, 'true');
       router.push('/(auth)/login');
     } catch (error) {
-      console.error('Error saving intro status:', error);
       router.push('/(auth)/login');
     }
   };
-
   const handleSocialLogin = (provider: 'google' | 'facebook' | 'apple') => {
-    // Handle social login logic here
-    console.log(`Login with ${provider}`);
   };
-
   return (
     <LinearGradient
       colors={['#F0F8FF', '#F5F5F0']}
@@ -45,21 +37,18 @@ export default function Intro2Screen() {
                 <Ionicons name="phone-portrait" size={40} color="#87CEEB" />
               </View>
             </View>
-            
             {/* Right-middle image */}
             <View style={[styles.imageCard, styles.imageCard3]}>
               <View style={styles.placeholderImage}>
                 <Ionicons name="people" size={40} color="#87CEEB" />
               </View>
             </View>
-            
             {/* Left-middle image */}
             <View style={[styles.imageCard, styles.imageCard2]}>
               <View style={styles.placeholderImage}>
                 <Ionicons name="happy" size={40} color="#87CEEB" />
               </View>
             </View>
-            
             {/* Top-most image */}
             <View style={[styles.imageCard, styles.imageCard1]}>
               <View style={styles.placeholderImage}>
@@ -67,7 +56,6 @@ export default function Intro2Screen() {
               </View>
             </View>
           </View>
-
           {/* Text Content */}
           <View style={styles.textContainer}>
             <ThemedText style={styles.title}>Step Into Commuin</ThemedText>
@@ -75,7 +63,6 @@ export default function Intro2Screen() {
               Discover authentic relationships and real growth— one conversation at a time.
             </ThemedText>
           </View>
-
           {/* Social Login Options */}
           <View style={styles.socialContainer}>
             <TouchableOpacity
@@ -86,7 +73,6 @@ export default function Intro2Screen() {
                 <ThemedText style={styles.googleText}>G</ThemedText>
               </View>
             </TouchableOpacity>
-
             <TouchableOpacity
               style={styles.socialButton}
               onPress={() => handleSocialLogin('facebook')}
@@ -95,7 +81,6 @@ export default function Intro2Screen() {
                 <Ionicons name="logo-facebook" size={24} color="#1877F2" />
               </View>
             </TouchableOpacity>
-
             <TouchableOpacity
               style={styles.socialButton}
               onPress={() => handleSocialLogin('apple')}
@@ -106,7 +91,6 @@ export default function Intro2Screen() {
             </TouchableOpacity>
           </View>
         </ScrollView>
-
         {/* Call to Action Button - Fixed at bottom */}
         <View style={styles.buttonContainer}>
           <TouchableOpacity style={styles.button} onPress={handleGetStarted}>
@@ -117,7 +101,6 @@ export default function Intro2Screen() {
     </LinearGradient>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,

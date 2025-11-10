@@ -2,16 +2,13 @@ import React from 'react';
 import { StyleSheet, View, ViewProps } from 'react-native';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors, BorderRadius, Shadows } from '@/constants/theme';
-
 interface CardProps extends ViewProps {
   variant?: 'default' | 'outlined';
   padding?: 'sm' | 'md' | 'lg';
 }
-
 export function Card({ children, variant = 'default', padding = 'md', style, ...props }: CardProps) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-
   const getPadding = () => {
     switch (padding) {
       case 'sm':
@@ -24,7 +21,6 @@ export function Card({ children, variant = 'default', padding = 'md', style, ...
         return 16;
     }
   };
-
   return (
     <View
       style={[
@@ -43,10 +39,8 @@ export function Card({ children, variant = 'default', padding = 'md', style, ...
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   card: {
     borderRadius: BorderRadius.lg,
   },
 });
-

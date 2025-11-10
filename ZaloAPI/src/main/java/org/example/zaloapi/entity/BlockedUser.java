@@ -1,13 +1,10 @@
 package org.example.zaloapi.entity;
-
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
-
 import java.time.LocalDateTime;
-
 /**
  * Entity cho việc chặn người dùng
  */
@@ -20,21 +17,16 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class BlockedUser {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "blocker_id", nullable = false)
     private User blocker;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "blocked_id", nullable = false)
     private User blocked;
-
     @CreationTimestamp
     @Column(name = "blocked_at", updatable = false)
     private LocalDateTime blockedAt;
 }
-

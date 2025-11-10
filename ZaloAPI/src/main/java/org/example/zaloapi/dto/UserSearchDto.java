@@ -1,10 +1,8 @@
 package org.example.zaloapi.dto;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 /**
  * DTO cho kết quả tìm kiếm user
  */
@@ -20,7 +18,6 @@ public class UserSearchDto {
     private String phoneNumber; // Chỉ hiển thị nếu user cho phép
     private Long mutualFriendsCount;
     private RelationshipStatus relationshipStatus;
-
     public enum RelationshipStatus {
         STRANGER,           // Người lạ
         FRIEND,             // Đã là bạn
@@ -29,4 +26,3 @@ public class UserSearchDto {
         BLOCKED             // Đã chặn (nếu có chức năng block)
     }
 }
-

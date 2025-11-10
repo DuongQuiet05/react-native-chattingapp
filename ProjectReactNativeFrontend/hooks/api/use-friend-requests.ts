@@ -1,11 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-
 import { getReceivedFriendRequests } from '@/lib/api/friends';
-
 export const friendRequestsQueryKeys = {
   received: ['friend-requests', 'received'] as const,
 };
-
 export function useFriendRequests() {
   return useQuery({
     queryKey: friendRequestsQueryKeys.received,

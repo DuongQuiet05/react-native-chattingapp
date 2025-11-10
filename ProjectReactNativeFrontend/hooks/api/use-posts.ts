@@ -10,14 +10,12 @@ import {
   type CreatePostRequest,
   type PostReactionRequest,
 } from '@/lib/api/posts';
-
 export function useFeed(page = 0, size = 20) {
   return useQuery({
     queryKey: ['feed', page, size],
     queryFn: () => getFeed(page, size),
   });
 }
-
 export function useUserPosts(userId: number, page = 0, size = 20) {
   return useQuery({
     queryKey: ['userPosts', userId, page, size],
@@ -25,7 +23,6 @@ export function useUserPosts(userId: number, page = 0, size = 20) {
     enabled: !!userId,
   });
 }
-
 export function usePost(postId: number) {
   return useQuery({
     queryKey: ['post', postId],
@@ -33,10 +30,8 @@ export function usePost(postId: number) {
     enabled: !!postId,
   });
 }
-
 export function useCreatePost() {
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: (data: CreatePostRequest) => createPost(data),
     onSuccess: () => {
@@ -45,10 +40,8 @@ export function useCreatePost() {
     },
   });
 }
-
 export function useDeletePost() {
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: (postId: number) => deletePost(postId),
     onSuccess: () => {
@@ -58,10 +51,8 @@ export function useDeletePost() {
     },
   });
 }
-
 export function useReactToPost() {
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: ({ postId, reaction }: { postId: number; reaction: PostReactionRequest }) =>
       reactToPost(postId, reaction),
@@ -72,10 +63,8 @@ export function useReactToPost() {
     },
   });
 }
-
 export function useRemovePostReaction() {
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: (postId: number) => removePostReaction(postId),
     onSuccess: (_, postId) => {
@@ -85,4 +74,3 @@ export function useRemovePostReaction() {
     },
   });
 }
-

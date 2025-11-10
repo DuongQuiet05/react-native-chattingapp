@@ -26,17 +26,13 @@ import { router } from 'expo-router';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import type { NotificationDto } from '@/lib/api/notifications';
-
 dayjs.extend(relativeTime);
-
 function NotificationItem({ notification }: { notification: NotificationDto }) {
   const markAsRead = useMarkNotificationAsRead();
-
   const handlePress = async () => {
     if (!notification.isRead) {
       await markAsRead.mutateAsync(notification.id);
     }
-
     // Navigate based on notification type
     switch (notification.notificationType) {
       case 'POST_COMMENT':
@@ -55,7 +51,6 @@ function NotificationItem({ notification }: { notification: NotificationDto }) {
         break;
     }
   };
-
   const getNotificationText = () => {
     const title = notification.title || '';
     // Extract username from title (e.g., "@valerieazr90 Liked your comments")
@@ -71,12 +66,10 @@ function NotificationItem({ notification }: { notification: NotificationDto }) {
       action: title,
     };
   };
-
   const { username, action } = getNotificationText();
   const createdAt = dayjs(notification.createdAt);
   const isToday = createdAt.isSame(dayjs(), 'day');
   const isYesterday = createdAt.isSame(dayjs().subtract(1, 'day'), 'day');
-  
   let timeDisplay = '';
   if (isToday) {
     const hours = createdAt.diff(dayjs(), 'hours');
@@ -86,9 +79,7 @@ function NotificationItem({ notification }: { notification: NotificationDto }) {
   } else {
     timeDisplay = createdAt.format('DD MMM YYYY');
   }
-
   const showFollowingButton = notification.notificationType === 'FRIEND_ACCEPTED';
-
   return (
     <TouchableOpacity onPress={handlePress} style={styles.notificationItem}>
       <View style={styles.notificationContent}>
@@ -113,7 +104,6 @@ function NotificationItem({ notification }: { notification: NotificationDto }) {
     </TouchableOpacity>
   );
 }
-
 export default function NotificationsScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
@@ -121,18 +111,14 @@ export default function NotificationsScreen() {
   const [showMenu, setShowMenu] = useState(false);
   const { data, isLoading, isRefetching, refetch } = useNotifications(page, 20);
   const markAllAsRead = useMarkAllNotificationsAsRead();
-
-  // Auto refetch when screen is focused
   useFocusEffect(
     useCallback(() => {
       refetch();
     }, [refetch])
   );
-
   const handleRefresh = () => {
     refetch();
   };
-
   const handleMarkAllRead = async () => {
     try {
       await markAllAsRead.mutateAsync();
@@ -140,48 +126,31 @@ export default function NotificationsScreen() {
       Alert.alert('Lỗi', 'Không thể đánh dấu đã đọc');
     }
   };
-
   const handleEllipsisPress = () => {
     setShowMenu(true);
   };
-
   const handleMarkAllReadPress = async () => {
     setShowMenu(false);
     await handleMarkAllRead();
   };
-
-  // Lọc notifications: chỉ hiển thị POST_COMMENT, POST_REACTION, COMMENT_REPLY
-  // KHÔNG hiển thị MESSAGE và MESSAGE_REACTION (chúng được hiển thị ở tab tin nhắn)
   const filteredNotifications = useMemo(() => {
-    const all = data?.content || [];
-    console.log('📬 [Notifications] Total notifications:', all.length);
-    
-    const filtered = all.filter(
+    const all = data?.content || [];const filtered = all.filter(
       (notification) =>
         notification.notificationType === 'POST_COMMENT' ||
         notification.notificationType === 'POST_REACTION' ||
         notification.notificationType === 'COMMENT_REPLY'
-    );
-    
-    console.log('📬 [Notifications] Filtered notifications:', filtered.length);
-    
-    return filtered;
+    );return filtered;
   }, [data?.content]);
-
-  // Tính unread count chỉ cho POST_COMMENT và POST_REACTION
   const unreadCount = useMemo(() => {
     return filteredNotifications.filter((n) => !n.isRead).length;
   }, [filteredNotifications]);
-
   // Group notifications by date
   const groupedNotifications = useMemo(() => {
     const groups: { [key: string]: NotificationDto[] } = {};
-    
     filteredNotifications.forEach((notification) => {
       const createdAt = dayjs(notification.createdAt);
       const isToday = createdAt.isSame(dayjs(), 'day');
       const isYesterday = createdAt.isSame(dayjs().subtract(1, 'day'), 'day');
-      
       let groupKey = '';
       if (isToday) {
         groupKey = 'Today';
@@ -190,16 +159,13 @@ export default function NotificationsScreen() {
       } else {
         groupKey = createdAt.format('DD MMM YYYY');
       }
-      
       if (!groups[groupKey]) {
         groups[groupKey] = [];
       }
       groups[groupKey].push(notification);
     });
-    
     return groups;
   }, [filteredNotifications]);
-
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={[styles.container, { backgroundColor: '#fff' }]}>
@@ -213,7 +179,6 @@ export default function NotificationsScreen() {
             <Ionicons name="ellipsis-vertical" size={24} color="#000" />
           </TouchableOpacity>
         </View>
-
         {/* Menu Popup */}
         <Modal
           visible={showMenu}
@@ -232,7 +197,6 @@ export default function NotificationsScreen() {
             </View>
           </Pressable>
         </Modal>
-
         {/* Notifications List */}
         <ScrollView
           style={styles.list}
@@ -264,7 +228,6 @@ export default function NotificationsScreen() {
     </SafeAreaView>
   );
 }
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,

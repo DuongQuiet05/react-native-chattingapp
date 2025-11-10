@@ -13,53 +13,36 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { auth } from '@/firebase/config';
 import { verifyOTP as verifyOTPAPI } from '@/lib/api/auth';
-
 export default function VerifyOTPScreen() {
   const params = useLocalSearchParams<{ phoneNumber: string; username: string }>();
   const { phoneNumber, username } = params;
-
   const recaptchaVerifier = useRef(null);
   const [verificationId, setVerificationId] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
-
-  // 1. Gửi OTP qua Firebase
   const sendOTP = async () => {
     if (!phoneNumber) {
       Alert.alert('Lỗi', 'Không tìm thấy số điện thoại');
       return;
     }
-
     setLoading(true);
     try {
-      // Chuyển đổi số điện thoại sang format quốc tế
       let internationalPhone = phoneNumber;
       if (phoneNumber.startsWith('0')) {
         internationalPhone = '+84' + phoneNumber.substring(1);
-      }
-
-      console.log('📞 Gửi OTP đến:', internationalPhone);
-
-      const phoneProvider = new PhoneAuthProvider(auth);
+      }const phoneProvider = new PhoneAuthProvider(auth);
       const verificationId = await phoneProvider.verifyPhoneNumber(
         internationalPhone,
         recaptchaVerifier.current as any
       );
-
       setVerificationId(verificationId);
-      setOtpSent(true);
-      console.log('✅ OTP đã được gửi!');
-      Alert.alert('Thành công', 'Mã OTP đã được gửi đến số điện thoại của bạn!');
-    } catch (error: any) {
-      console.error('❌ Lỗi gửi OTP:', error);
-      
-      // Xử lý lỗi billing của Firebase
+      setOtpSent(true);Alert.alert('Thành công', 'Mã OTP đã được gửi đến số điện thoại của bạn!');
+    } catch (error: any) {// Xử lý lỗi billing của Firebase
       if (error.code === 'auth/billing-not-enabled') {
         Alert.alert(
           'Firebase Billing Chưa Được Bật',
@@ -89,33 +72,21 @@ export default function VerifyOTPScreen() {
       setLoading(false);
     }
   };
-
-  // 2. Xác thực OTP
   const verifyOTP = async () => {
     if (!otpCode || otpCode.length !== 6) {
       Alert.alert('Lỗi', 'Vui lòng nhập mã OTP gồm 6 chữ số');
       return;
     }
-
     setLoading(true);
     try {
-      // Verify với Firebase
       const credential = PhoneAuthProvider.credential(verificationId, otpCode);
       const userCredential = await signInWithCredential(auth, credential);
-      const idToken = await userCredential.user.getIdToken();
-
-      console.log('✅ Firebase xác thực thành công!');
-
-      // Gửi lên Backend để xác nhận
+      const idToken = await userCredential.user.getIdToken();// Gửi lên Backend để xác nhận
       const response = await verifyOTPAPI({
         phoneNumber,
         otpCode,
         idToken,
-      });
-
-      console.log('✅ Backend xác thực thành công:', response);
-
-      if (response.success) {
+      });if (response.success) {
         Alert.alert(
           'Xác thực thành công!',
           'Bạn có thể đăng nhập ngay bây giờ.',
@@ -132,18 +103,13 @@ export default function VerifyOTPScreen() {
           ]
         );
       }
-    } catch (error: any) {
-      console.error('❌ Lỗi verify OTP:', error);
-
-      const errorMsg =
+    } catch (error: any) {const errorMsg =
         error.response?.data?.message || error.message || 'Mã OTP không đúng';
-
       Alert.alert('Xác thực thất bại', errorMsg);
     } finally {
       setLoading(false);
     }
   };
-
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
@@ -155,16 +121,13 @@ export default function VerifyOTPScreen() {
           firebaseConfig={auth.app.options}
           attemptInvisibleVerification={true}
         />
-
       <ThemedView style={styles.card}>
         <ThemedText type="title" style={styles.title}>
           Xác thực OTP
         </ThemedText>
-
         <ThemedText style={styles.subtitle}>
           Số điện thoại: {phoneNumber}
         </ThemedText>
-
         {!otpSent ? (
           <>
             <ThemedText style={styles.description}>
@@ -195,7 +158,6 @@ export default function VerifyOTPScreen() {
                 editable={!loading}
               />
             </View>
-
             <TouchableOpacity
               style={[styles.button, loading && styles.buttonDisabled]}
               disabled={loading}
@@ -206,7 +168,6 @@ export default function VerifyOTPScreen() {
                 <ThemedText style={styles.buttonText}>Xác thực OTP</ThemedText>
               )}
             </TouchableOpacity>
-
             <TouchableOpacity
               style={styles.linkButton}
               onPress={sendOTP}
@@ -215,7 +176,6 @@ export default function VerifyOTPScreen() {
             </TouchableOpacity>
           </>
         )}
-
         <TouchableOpacity
           style={styles.linkButton}
           onPress={() => router.back()}
@@ -227,7 +187,6 @@ export default function VerifyOTPScreen() {
     </SafeAreaView>
   );
 }
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,

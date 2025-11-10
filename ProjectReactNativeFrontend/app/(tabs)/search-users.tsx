@@ -16,68 +16,53 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
 export default function SearchUsersScreen() {
   const colorScheme = useColorScheme();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<UserSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
-
   // Modal state
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedUser, setSelectedUser] = useState<{ id: number; name: string } | null>(null);
-
   const handleSearch = async () => {
     if (!query.trim()) {
       Alert.alert('Thông báo', 'Vui lòng nhập số điện thoại, tên hoặc username để tìm kiếm');
       return;
     }
-
     if (query.trim().length < 2) {
       Alert.alert('Thông báo', 'Vui lòng nhập ít nhất 2 ký tự để tìm kiếm');
       return;
     }
-
     setLoading(true);
     setHasSearched(true);
-    
     try {
       const data = await searchUsers(query.trim());
       setResults(data);
-    } catch (error: any) {
-      console.error('Search error:', error);
-      Alert.alert('Lỗi', 'Không thể tìm kiếm. Vui lòng thử lại sau.');
+    } catch (error: any) {Alert.alert('Lỗi', 'Không thể tìm kiếm. Vui lòng thử lại sau.');
     } finally {
       setLoading(false);
     }
   };
-
   const handleSendRequest = (userId: number, userName: string) => {
     setSelectedUser({ id: userId, name: userName });
     setModalVisible(true);
   };
-
   const handleAcceptRequest = async (requestId: number) => {
     try {
       await acceptFriendRequest(requestId);
       Alert.alert('Thành công', 'Đã chấp nhận lời mời kết bạn!');
       // Refresh search results
       handleSearch();
-    } catch (error: any) {
-      console.error('Accept request error:', error);
-      Alert.alert('Lỗi', 'Không thể chấp nhận lời mời. Vui lòng thử lại.');
+    } catch (error: any) {Alert.alert('Lỗi', 'Không thể chấp nhận lời mời. Vui lòng thử lại.');
     }
   };
-
   const handleModalSuccess = () => {
     // Refresh search results after sending request
     handleSearch();
   };
-
   const renderEmptyState = () => {
     if (loading) return null;
-
     if (!hasSearched) {
       return (
         <View style={styles.emptyState}>
@@ -95,7 +80,6 @@ export default function SearchUsersScreen() {
         </View>
       );
     }
-
     if (results.length === 0) {
       return (
         <View style={styles.emptyState}>
@@ -110,10 +94,8 @@ export default function SearchUsersScreen() {
         </View>
       );
     }
-
     return null;
   };
-
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ThemedView style={styles.content}>
@@ -121,7 +103,6 @@ export default function SearchUsersScreen() {
         <View style={styles.header}>
           <ThemedText type="title">Tìm kiếm</ThemedText>
         </View>
-
         {/* Search Input */}
         <View style={styles.searchContainer}>
           <View style={styles.searchInputWrapper}>
@@ -154,7 +135,6 @@ export default function SearchUsersScreen() {
               </TouchableOpacity>
             )}
           </View>
-
           <TouchableOpacity
             style={[styles.searchButton, loading && styles.searchButtonDisabled]}
             onPress={handleSearch}
@@ -166,7 +146,6 @@ export default function SearchUsersScreen() {
             )}
           </TouchableOpacity>
         </View>
-
         {/* Results */}
         <FlatList
           data={results}
@@ -181,7 +160,6 @@ export default function SearchUsersScreen() {
           ListEmptyComponent={renderEmptyState}
           contentContainerStyle={results.length === 0 ? styles.emptyContainer : undefined}
         />
-
         {/* Send Friend Request Modal */}
         {selectedUser && (
           <SendFriendRequestModal
@@ -196,7 +174,6 @@ export default function SearchUsersScreen() {
     </SafeAreaView>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,

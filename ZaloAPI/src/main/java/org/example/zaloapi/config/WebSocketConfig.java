@@ -1,5 +1,4 @@
 package org.example.zaloapi.config;
-
 import lombok.RequiredArgsConstructor;
 import org.example.zaloapi.security.JwtUtil;
 import org.springframework.context.annotation.Configuration;
@@ -17,27 +16,21 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
-
 @Configuration
 @EnableWebSocketMessageBroker
 @RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
-
     private final JwtUtil jwtUtil;
     private final UserDetailsService userDetailsService;
-
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
         config.enableSimpleBroker("/topic", "/queue");
         config.setApplicationDestinationPrefixes("/app");
         config.setUserDestinationPrefix("/user");
     }
-
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        // WebSocket thuần - KHÔNG dùng SockJS
         registry.addEndpoint("/ws")
-                // ✅ Dùng pattern để hỗ trợ mọi IP trong LAN + Expo
                 .setAllowedOriginPatterns(
                     "http://localhost:*",
                     "http://127.0.0.1:*",
@@ -46,52 +39,36 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                     "exp://*"
                 );
     }
-
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
         registration.interceptors(new ChannelInterceptor() {
             @Override
             public org.springframework.messaging.Message<?> preSend(org.springframework.messaging.Message<?> message, MessageChannel channel) {
                 StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
-
                 if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
                     String token = null;
-
-                    // 1. Lấy token từ Authorization header (ưu tiên)
                     String authToken = accessor.getFirstNativeHeader("Authorization");
                     if (authToken != null && authToken.startsWith("Bearer ")) {
-                        token = authToken.substring(7);
-                        System.out.println("✅ [WebSocket] Token found in Authorization header");
-                    }
-
-                    // 2. Nếu không có, lấy từ query params (access_token) trong URL
+                        token = authToken.substring(7);}
                     if (token == null) {
-                        // Lấy từ simpSessionAttributes hoặc từ URL
                         Object sessionAttributes = accessor.getSessionAttributes();
                         if (sessionAttributes instanceof java.util.Map) {
                             @SuppressWarnings("unchecked")
                             java.util.Map<String, Object> attrs = (java.util.Map<String, Object>) sessionAttributes;
                             Object accessToken = attrs.get("access_token");
                             if (accessToken != null) {
-                                token = accessToken.toString();
-                                System.out.println("✅ [WebSocket] Token found in session attributes");
-                            }
+                                token = accessToken.toString();}
                         }
                     }
-
-                    // 3. Xác thực token
                     if (token != null && !token.isEmpty()) {
                         try {
                             String username = jwtUtil.extractUsername(token);
-
                             if (username != null && jwtUtil.validateToken(token)) {
                                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
                                 UsernamePasswordAuthenticationToken authentication =
                                         new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                                 SecurityContextHolder.getContext().setAuthentication(authentication);
-                                accessor.setUser(authentication);
-                                System.out.println("✅ [WebSocket] Authentication successful for user: " + username);
-                            } else {
+                                accessor.setUser(authentication);} else {
                                 System.err.println("❌ [WebSocket] Invalid token: username=" + username);
                                 throw new RuntimeException("Invalid JWT token");
                             }
@@ -106,10 +83,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                         throw new RuntimeException("Authentication token required");
                     }
                 }
-
                 return message;
             }
         });
     }
 }
-

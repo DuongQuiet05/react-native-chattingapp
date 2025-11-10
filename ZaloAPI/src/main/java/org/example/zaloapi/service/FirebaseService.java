@@ -1,15 +1,12 @@
 package org.example.zaloapi.service;
-
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseToken;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-
 @Service
 @Slf4j
 public class FirebaseService {
-
     /**
      * Xác thực Firebase ID Token từ client
      * Client sẽ gửi OTP code lên Firebase và nhận về ID Token
@@ -25,7 +22,6 @@ public class FirebaseService {
             throw e;
         }
     }
-
     /**
      * Lấy số điện thoại từ Firebase token
      */
@@ -37,7 +33,6 @@ public class FirebaseService {
         }
         return phoneNumber.toString();
     }
-
     /**
      * Kiểm tra xem Firebase đã được cấu hình chưa
      */
@@ -51,4 +46,3 @@ public class FirebaseService {
         }
     }
 }
-

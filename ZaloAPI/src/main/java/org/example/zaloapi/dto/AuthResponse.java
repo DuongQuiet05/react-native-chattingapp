@@ -1,8 +1,6 @@
 package org.example.zaloapi.dto;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
-
 @Data
 @AllArgsConstructor
 public class AuthResponse {
@@ -12,4 +10,3 @@ public class AuthResponse {
     private String displayName;
     private String avatarUrl;
 }
-

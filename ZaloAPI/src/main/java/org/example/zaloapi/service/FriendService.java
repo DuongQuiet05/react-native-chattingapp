@@ -1,5 +1,4 @@
 package org.example.zaloapi.service;
-
 import lombok.RequiredArgsConstructor;
 import org.example.zaloapi.dto.*;
 import org.example.zaloapi.entity.*;
@@ -7,16 +6,13 @@ import org.example.zaloapi.repository.*;
 import org.example.zaloapi.util.PhoneNumberUtil;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-
 @Service
 @RequiredArgsConstructor
 public class FriendService {
-
     private final UserRepository userRepository;
     private final FriendRequestRepository friendRequestRepository;
     private final FriendshipRepository friendshipRepository;
@@ -24,7 +20,6 @@ public class FriendService {
     private final PushNotificationService pushNotificationService;
     private final NotificationService notificationService;
     private final BlockService blockService;
-
     /**
      * Tìm kiếm user theo số điện thoại, username hoặc display name
      */
@@ -33,36 +28,26 @@ public class FriendService {
         if (query == null || query.trim().isEmpty()) {
             return new ArrayList<>();
         }
-
         User currentUser = userRepository.findById(currentUserId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-
         List<User> results = new ArrayList<>();
-
-        // 1. Tìm theo số điện thoại (ưu tiên cao nhất)
         if (PhoneNumberUtil.isValidVietnamesePhone(query)) {
             String normalizedPhone = PhoneNumberUtil.normalize(query);
             Optional<User> userByPhone = userRepository.findByPhoneNumber(normalizedPhone);
-
             if (userByPhone.isPresent()) {
                 User user = userByPhone.get();
-                // Kiểm tra privacy: user có cho phép tìm theo SĐT không?
                 UserPrivacySettings privacy = getOrCreatePrivacySettings(user.getId());
                 if (privacy.getAllowFindByPhone()) {
                     results.add(user);
                 }
             }
         }
-
-        // 2. Tìm theo username (chính xác)
         if (results.isEmpty()) {
             Optional<User> userByUsername = userRepository.findByUsername(query);
             if (userByUsername.isPresent() && !userByUsername.get().getId().equals(currentUserId)) {
                 results.add(userByUsername.get());
             }
         }
-
-        // 3. Tìm theo display name (gần đúng)
         if (results.isEmpty()) {
             List<User> usersByDisplayName = userRepository.findByDisplayNameContainingIgnoreCase(query);
             results.addAll(usersByDisplayName.stream()
@@ -70,18 +55,14 @@ public class FriendService {
                     .limit(20)
                     .toList());
         }
-
         // Filter out blocked users (both ways)
         List<User> filteredResults = results.stream()
                 .filter(user -> !blockService.isBlockedEitherWay(currentUserId, user.getId()))
                 .collect(Collectors.toList());
-
-        // Chuyển đổi sang DTO với relationship status
         return filteredResults.stream()
                 .map(user -> mapToUserSearchDto(user, currentUserId))
                 .collect(Collectors.toList());
     }
-
     /**
      * Gửi lời mời kết bạn
      */
@@ -89,48 +70,31 @@ public class FriendService {
     public FriendRequestDto sendFriendRequest(Long senderId, SendFriendRequestDto request) {
         User sender = userRepository.findById(senderId)
                 .orElseThrow(() -> new RuntimeException("Sender not found"));
-
         User receiver = userRepository.findById(request.getReceiverId())
                 .orElseThrow(() -> new RuntimeException("Receiver not found"));
-
-        // Kiểm tra không tự gửi cho chính mình
         if (senderId.equals(request.getReceiverId())) {
             throw new RuntimeException("Cannot send friend request to yourself");
         }
-
-        // Kiểm tra đã là bạn chưa
         if (friendshipRepository.findBetweenUsers(senderId, request.getReceiverId()).isPresent()) {
             throw new RuntimeException("Already friends");
         }
-
-        // Kiểm tra đã có lời mời pending chưa
         Optional<FriendRequest> existingRequest = friendRequestRepository.findPendingBetweenUsers(senderId, request.getReceiverId());
         if (existingRequest.isPresent()) {
             throw new RuntimeException("Friend request already exists");
         }
-
-        // Kiểm tra privacy của receiver
         UserPrivacySettings receiverPrivacy = getOrCreatePrivacySettings(request.getReceiverId());
-
-        // Nếu receiver không cho phép nhận lời mời từ người lạ
         if (!receiverPrivacy.getAllowFriendRequestFromStrangers()) {
-            // Kiểm tra có bạn chung không
             long mutualFriends = friendshipRepository.countMutualFriends(senderId, request.getReceiverId());
             if (mutualFriends == 0) {
                 throw new RuntimeException("This user only accepts friend requests from mutual friends");
             }
         }
-
-        // Tạo lời mời mới
         FriendRequest friendRequest = new FriendRequest();
         friendRequest.setSender(sender);
         friendRequest.setReceiver(receiver);
         friendRequest.setMessage(request.getMessage());
         friendRequest.setStatus(FriendRequest.RequestStatus.PENDING);
-
         FriendRequest saved = friendRequestRepository.save(friendRequest);
-
-        // Tạo notification trong database
         try {
             notificationService.createNotification(
                 request.getReceiverId(),
@@ -143,8 +107,6 @@ public class FriendService {
         } catch (Exception e) {
             System.err.println("⚠️ Failed to create notification: " + e.getMessage());
         }
-
-        // Gửi push notification
         try {
             pushNotificationService.sendFriendRequestNotification(
                 request.getReceiverId(),
@@ -154,10 +116,8 @@ public class FriendService {
         } catch (Exception e) {
             System.err.println("⚠️ Failed to send push notification: " + e.getMessage());
         }
-
         return mapToFriendRequestDto(saved);
     }
-
     /**
      * Lấy danh sách lời mời kết bạn đang chờ xử lý
      */
@@ -165,12 +125,10 @@ public class FriendService {
     public List<FriendRequestDto> getPendingFriendRequests(Long userId) {
         List<FriendRequest> requests = friendRequestRepository.findByReceiverAndStatus(
                 userId, FriendRequest.RequestStatus.PENDING);
-
         return requests.stream()
                 .map(this::mapToFriendRequestDto)
                 .collect(Collectors.toList());
     }
-
     /**
      * Lấy danh sách lời mời đã gửi
      */
@@ -178,12 +136,10 @@ public class FriendService {
     public List<FriendRequestDto> getSentFriendRequests(Long userId) {
         List<FriendRequest> requests = friendRequestRepository.findBySenderAndStatus(
                 userId, FriendRequest.RequestStatus.PENDING);
-
         return requests.stream()
                 .map(this::mapToFriendRequestDto)
                 .collect(Collectors.toList());
     }
-
     /**
      * Chấp nhận lời mời kết bạn
      */
@@ -191,28 +147,18 @@ public class FriendService {
     public void acceptFriendRequest(Long requestId, Long userId) {
         FriendRequest request = friendRequestRepository.findById(requestId)
                 .orElseThrow(() -> new RuntimeException("Friend request not found"));
-
-        // Kiểm tra user có phải receiver không
         if (!request.getReceiver().getId().equals(userId)) {
             throw new RuntimeException("You are not authorized to accept this request");
         }
-
-        // Kiểm tra trạng thái
         if (request.getStatus() != FriendRequest.RequestStatus.PENDING) {
             throw new RuntimeException("This request is no longer pending");
         }
-
-        // Cập nhật trạng thái request
         request.setStatus(FriendRequest.RequestStatus.ACCEPTED);
         friendRequestRepository.save(request);
-
-        // Tạo friendship (quan hệ 2 chiều)
         Friendship friendship = new Friendship();
         friendship.setUser1(request.getSender());
         friendship.setUser2(request.getReceiver());
         friendshipRepository.save(friendship);
-
-        // Tạo notification cho sender khi được chấp nhận
         try {
             notificationService.createNotification(
                 request.getSender().getId(),
@@ -225,8 +171,6 @@ public class FriendService {
         } catch (Exception e) {
             System.err.println("⚠️ Failed to create notification: " + e.getMessage());
         }
-
-        // Gửi push notification
         try {
             pushNotificationService.sendFriendAcceptedNotification(
                 request.getSender().getId(),
@@ -236,7 +180,6 @@ public class FriendService {
             System.err.println("⚠️ Failed to send push notification: " + e.getMessage());
         }
     }
-
     /**
      * Từ chối lời mời kết bạn
      */
@@ -244,24 +187,15 @@ public class FriendService {
     public void rejectFriendRequest(Long requestId, Long userId) {
         FriendRequest request = friendRequestRepository.findById(requestId)
                 .orElseThrow(() -> new RuntimeException("Friend request not found"));
-
-        // Kiểm tra user có phải receiver không
         if (!request.getReceiver().getId().equals(userId)) {
             throw new RuntimeException("You are not authorized to reject this request");
         }
-
-        // Kiểm tra trạng thái
         if (request.getStatus() != FriendRequest.RequestStatus.PENDING) {
             throw new RuntimeException("This request is no longer pending");
         }
-
-        // Cập nhật trạng thái
         request.setStatus(FriendRequest.RequestStatus.REJECTED);
         friendRequestRepository.save(request);
-
-        // Không gửi notification cho sender
     }
-
     /**
      * Hủy lời mời kết bạn đã gửi
      */
@@ -269,61 +203,44 @@ public class FriendService {
     public void cancelFriendRequest(Long requestId, Long userId) {
         FriendRequest request = friendRequestRepository.findById(requestId)
                 .orElseThrow(() -> new RuntimeException("Friend request not found"));
-
-        // Kiểm tra user có phải sender không
         if (!request.getSender().getId().equals(userId)) {
             throw new RuntimeException("You are not authorized to cancel this request");
         }
-
-        // Kiểm tra trạng thái
         if (request.getStatus() != FriendRequest.RequestStatus.PENDING) {
             throw new RuntimeException("This request is no longer pending");
         }
-
-        // Xóa request
         friendRequestRepository.delete(request);
     }
-
     /**
      * Lấy danh sách bạn bè
      */
     @Transactional(readOnly = true)
     public List<UserBasicDto> getFriends(Long userId) {
         try {
-            // Lấy danh sách ID bạn bè trước (không có lazy loading issue)
             List<Long> friendIds = friendshipRepository.findFriendIdsByUserId(userId);
-            
             if (friendIds == null || friendIds.isEmpty()) {
                 return new ArrayList<>();
             }
-            
-            // Query User entities trực tiếp từ IDs (không qua Friendship)
             List<User> friends = userRepository.findAllById(friendIds);
-            
             return friends.stream()
                     .filter(user -> user != null) // Filter out null users
                     .map(this::mapToUserBasicDto)
                     .collect(Collectors.toList());
         } catch (Exception e) {
-            // Log error và return empty list thay vì throw exception
             System.err.println("Error getting friends for user " + userId + ": " + e.getMessage());
             e.printStackTrace();
             return new ArrayList<>();
         }
     }
-
     /**
      * Xóa bạn bè
      */
     @Transactional
     public void removeFriend(Long userId, Long friendId) {
-        // Kiểm tra có phải bạn bè không
         Friendship friendship = friendshipRepository.findBetweenUsers(userId, friendId)
                 .orElseThrow(() -> new RuntimeException("You are not friends with this user"));
-
         friendshipRepository.delete(friendship);
     }
-
     /**
      * Đếm số lời mời đang chờ
      */
@@ -331,7 +248,6 @@ public class FriendService {
     public long countPendingRequests(Long userId) {
         return friendRequestRepository.countPendingRequestsByReceiver(userId);
     }
-
     /**
      * Lấy relationship status giữa 2 user
      */
@@ -339,7 +255,6 @@ public class FriendService {
     public UserSearchDto.RelationshipStatus getRelationshipStatus(Long userId, Long currentUserId) {
         return determineRelationshipStatus(userId, currentUserId);
     }
-
     /**
      * Đếm số bạn chung giữa 2 user
      */
@@ -347,18 +262,11 @@ public class FriendService {
     public long countMutualFriends(Long userId1, Long userId2) {
         return friendshipRepository.countMutualFriends(userId1, userId2);
     }
-
     // ========== HELPER METHODS ==========
-
     private UserSearchDto mapToUserSearchDto(User user, Long currentUserId) {
         UserPrivacySettings privacy = getOrCreatePrivacySettings(user.getId());
-
-        // Kiểm tra relationship status
         UserSearchDto.RelationshipStatus status = determineRelationshipStatus(user.getId(), currentUserId);
-
-        // Đếm bạn chung
         long mutualFriends = friendshipRepository.countMutualFriends(user.getId(), currentUserId);
-
         return UserSearchDto.builder()
                 .id(user.getId())
                 .username(user.getUsername())
@@ -369,14 +277,10 @@ public class FriendService {
                 .relationshipStatus(status)
                 .build();
     }
-
     private UserSearchDto.RelationshipStatus determineRelationshipStatus(Long userId, Long currentUserId) {
-        // Kiểm tra đã là bạn
         if (friendshipRepository.findBetweenUsers(userId, currentUserId).isPresent()) {
             return UserSearchDto.RelationshipStatus.FRIEND;
         }
-
-        // Kiểm tra có lời mời pending không
         Optional<FriendRequest> pendingRequest = friendRequestRepository.findPendingBetweenUsers(userId, currentUserId);
         if (pendingRequest.isPresent()) {
             FriendRequest request = pendingRequest.get();
@@ -386,10 +290,8 @@ public class FriendService {
                 return UserSearchDto.RelationshipStatus.REQUEST_RECEIVED;
             }
         }
-
         return UserSearchDto.RelationshipStatus.STRANGER;
     }
-
     private FriendRequestDto mapToFriendRequestDto(FriendRequest request) {
         return FriendRequestDto.builder()
                 .id(request.getId())
@@ -401,7 +303,6 @@ public class FriendService {
                 .updatedAt(request.getUpdatedAt())
                 .build();
     }
-
     private UserBasicDto mapToUserBasicDto(User user) {
         return UserBasicDto.builder()
                 .id(user.getId())
@@ -411,26 +312,18 @@ public class FriendService {
                 .status(user.getStatus().name())
                 .build();
     }
-
     private UserPrivacySettings getOrCreatePrivacySettings(Long userId) {
         Optional<UserPrivacySettings> existing = privacySettingsRepository.findByUserId(userId);
         if (existing.isPresent()) {
             return existing.get();
         }
-
-        // Tạo mới settings nếu chưa có
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-
         UserPrivacySettings settings = new UserPrivacySettings();
         settings.setUser(user);
-        // Không cần set userId vì @MapsId sẽ tự động lấy từ user
         settings.setAllowFindByPhone(true);
         settings.setAllowFriendRequestFromStrangers(true);
         settings.setShowPhoneToFriends(false);
-
-        // Lưu và flush để đảm bảo được persist ngay
         return privacySettingsRepository.saveAndFlush(settings);
     }
 }
-

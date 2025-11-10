@@ -32,24 +32,19 @@ import { useFileUpload } from '@/hooks/use-file-upload';
 import type { ConversationDetail, ConversationSummary } from '@/lib/api/conversations';
 import type { MessageDto } from '@/lib/api/messages';
 import { markConversationAsRead } from '@/lib/api/messages';
-// Temporarily disabled to prevent infinite loops
-// import { useStomp } from '@/providers/stomp-provider';
+import { useStomp } from '@/providers/stomp-provider';
 export default function ConversationScreen() {
   const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
   const numericId = useMemo(() => Number(conversationId), [conversationId]);
-  const flatListRef = useRef<FlatList<MessageDto>>(null);
+  type GroupedMessageItem = { type: 'date' | 'message'; date?: string; message?: MessageDto };
+  const flatListRef = useRef<FlatList<GroupedMessageItem>>(null);
   const navigation = useNavigation();
   const { user } = useAuth();
   const [draft, setDraft] = useState('');
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const queryClient = useQueryClient();
-  // Temporarily disabled to prevent infinite loops
-  // const { connected, subscribe, sendMessage: sendMessageWS, sendTypingIndicator } = useStomp();
-  const connected = false;
-  const subscribe = () => () => {}; // Mock function
-  const sendMessageWS = () => {}; // Mock function
-  const sendTypingIndicator = () => {}; // Mock function
+  const { connected, subscribe, sendMessage: sendMessageWS, sendTypingIndicator } = useStomp();
   // Thêm state để force re-render khi có message mới
   const [messageUpdateKey, setMessageUpdateKey] = useState(0);
   // Thêm local state để lưu messages và sync với React Query
@@ -266,6 +261,19 @@ export default function ConversationScreen() {
             }, 50);
 
             // Update conversation list cache
+            // When user is viewing this conversation, all new messages are considered read
+            // Get preview text based on message type
+            let previewText = payload.content || '';
+            if (payload.messageType === 'IMAGE') {
+              previewText = '📷 Đã gửi một ảnh';
+            } else if (payload.messageType === 'VIDEO') {
+              previewText = '🎥 Đã gửi một video';
+            } else if (payload.messageType === 'FILE') {
+              previewText = '📎 Đã gửi một file';
+            }
+            
+            // Update conversation list immediately and ensure unreadCount = 0
+            // (User is viewing this conversation, so all messages are considered read)
             queryClient.setQueryData<ConversationSummary[] | undefined>(
               conversationQueryKeys.all,
               (previous) => {
@@ -283,14 +291,32 @@ export default function ConversationScreen() {
                   item.id === numericId
                     ? {
                         ...item,
-                        lastMessagePreview: payload.content,
+                        lastMessagePreview: previewText,
                         lastMessageAt: payload.sentAt,
+                        // User is viewing this conversation, so mark as read (unreadCount = 0)
                         unreadCount: 0,
                       }
                     : item,
                 );
               },
             );
+            
+            // Also update after a small delay to ensure it overrides any updates from chat list screen
+            setTimeout(() => {
+              queryClient.setQueryData<ConversationSummary[] | undefined>(
+                conversationQueryKeys.all,
+                (previous) => {
+                  if (!previous) {
+                    return previous;
+                  }
+                  return previous.map((item) =>
+                    item.id === numericId
+                      ? { ...item, unreadCount: 0 }
+                      : item,
+                  );
+                },
+              );
+            }, 100);
             
             // Auto scroll khi có tin nhắn mới
             setTimeout(() => {
@@ -351,6 +377,27 @@ export default function ConversationScreen() {
                 );
               },
             );
+            break;
+          }
+
+          case 'REACTION': {
+            // Xử lý reaction events real-time từ WebSocket
+            const messageId = rawPayload.messageId || rawPayload.id;
+            if (messageId) {
+              console.log('📬 [Chat] Received reaction event for message:', messageId);
+              // Invalidate và refetch reactions ngay lập tức
+              queryClient.invalidateQueries({ 
+                queryKey: ['messageReactions', messageId],
+                refetchType: 'active',
+              });
+              // Force refetch ngay lập tức
+              setTimeout(() => {
+                queryClient.refetchQueries({ 
+                  queryKey: ['messageReactions', messageId],
+                  type: 'active',
+                });
+              }, 100);
+            }
             break;
           }
 
@@ -448,8 +495,6 @@ export default function ConversationScreen() {
             break;
         }
       } catch (error) {
-        console.warn('❌ [Chat] Không thể phân tích tin nhắn realtime:', error);
-        console.warn('Raw message body:', message.body);
       }
     });
 
@@ -491,8 +536,6 @@ export default function ConversationScreen() {
       
       flatListRef.current?.scrollToEnd({ animated: true });
     } catch (error) {
-      console.error('❌ [Chat] Send message failed:', error);
-      console.warn('Gửi tin nhắn thất bại', error);
       setDraft(originalDraft);
     }
   };
@@ -700,15 +743,46 @@ export default function ConversationScreen() {
       // Backend đã tự động mark MESSAGE và MESSAGE_REACTION notifications as read
       queryClient.invalidateQueries({ queryKey: ['unreadMessageNotificationCount'] });
     } catch (error) {
-      console.warn('Không thể cập nhật trạng thái đã đọc', error);
     }
   }, [numericId, queryClient]);
+
+  // Refetch reactions định kỳ khi đang ở trong conversation để đảm bảo real-time updates
+  // Chỉ refetch khi WebSocket connected và có messages
+  useEffect(() => {
+    if (!displayMessages || displayMessages.length === 0) {
+      return;
+    }
+
+    // Refetch reactions cho tất cả messages mỗi 1 giây để đảm bảo real-time updates
+    // Interval ngắn để cập nhật nhanh khi có reactions mới từ users khác
+    const interval = setInterval(() => {
+      displayMessages.forEach((msg) => {
+        queryClient.refetchQueries({ 
+          queryKey: ['messageReactions', msg.id],
+          type: 'active',
+        });
+      });
+    }, 1000); // Refetch mỗi 1 giây để đảm bảo real-time
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [displayMessages, queryClient]);
 
   useFocusEffect(
     useCallback(() => {
       void markAsRead();
+      // Refetch reactions cho tất cả messages khi screen được focus để đảm bảo có data mới nhất
+      if (displayMessages && displayMessages.length > 0) {
+        displayMessages.forEach((msg) => {
+          queryClient.refetchQueries({ 
+            queryKey: ['messageReactions', msg.id],
+            type: 'active',
+          });
+        });
+      }
       return undefined;
-    }, [markAsRead]),
+    }, [markAsRead, displayMessages, queryClient]),
   );
 
   useEffect(() => {
@@ -739,9 +813,9 @@ export default function ConversationScreen() {
 
       let displayDate = '';
       if (msgDate === today) {
-        displayDate = 'Today';
+        displayDate = 'Hôm nay';
       } else if (msgDate === yesterday) {
-        displayDate = 'Yesterday';
+        displayDate = 'Hôm qua';
       } else {
         displayDate = dayjs(msg.sentAt).format('DD MMM YYYY');
       }
@@ -783,7 +857,7 @@ export default function ConversationScreen() {
     );
   }
 
-  const renderItem = ({ item }: { item: { type: 'date' | 'message'; date?: string; message?: MessageDto } }) => {
+  const renderItem = ({ item, index }: { item: { type: 'date' | 'message'; date?: string; message?: MessageDto }; index: number }) => {
     if (item.type === 'date') {
       return (
         <View style={styles.dateSeparator}>
@@ -796,7 +870,24 @@ export default function ConversationScreen() {
 
     if (item.message) {
       const isMine = item.message.sender.id === user?.id;
-      return <MessageItem message={item.message} isOwn={isMine} />;
+      const previousItem = index > 0 ? groupedMessages[index - 1] : null;
+      const previousMessage = previousItem?.type === 'message' ? previousItem.message : null;
+      
+      let showSenderName = false;
+      if (!isMine) {
+        if (!previousMessage) {
+          showSenderName = true;
+        } else if (previousMessage.sender.id !== item.message.sender.id) {
+          showSenderName = true;
+        } else {
+          const timeDiff = new Date(item.message.sentAt).getTime() - new Date(previousMessage.sentAt).getTime();
+          if (timeDiff > 5 * 60 * 1000) {
+            showSenderName = true;
+          }
+        }
+      }
+      
+      return <MessageItem message={item.message} isOwn={isMine} showSenderName={showSenderName} previousMessage={previousMessage} />;
     }
 
     return null;
@@ -907,7 +998,7 @@ export default function ConversationScreen() {
           
           <TextInput
             style={styles.input}
-            placeholder="Type a message.."
+            placeholder="Nhập tin nhắn..."
             placeholderTextColor="#999"
             value={draft}
             onChangeText={handleTextChange}
@@ -1068,40 +1159,6 @@ const styles = StyleSheet.create({
   uploadingText: {
     fontSize: 13,
     opacity: 0.7,
-  },
-  composer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    gap: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(0,0,0,0.1)',
-  },
-  attachButton: {
-    paddingBottom: 4,
-  },
-  input: {
-    flex: 1,
-    minHeight: 40,
-    maxHeight: 120,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  sendButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 16,
-    backgroundColor: '#0a84ff',
-  },
-  sendButtonDisabled: {
-    opacity: 0.6,
-  },
-  sendButtonText: {
-    color: '#fff',
-    fontWeight: '600',
   },
   header: {
     flexDirection: 'row',

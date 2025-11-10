@@ -1,5 +1,4 @@
 package org.example.zaloapi.controller;
-
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -12,18 +11,14 @@ import org.example.zaloapi.service.PushNotificationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.Map;
-
 @RestController
 @RequestMapping("/api/devices")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "bearerAuth")
 @Tag(name = "Devices", description = "Device registration for push notifications")
 public class DeviceController {
-
     private final PushNotificationService pushNotificationService;
-
     @PostMapping("/register")
     @Operation(summary = "Register device", description = "Register FCM token for push notifications")
     public ResponseEntity<Map<String, Object>> registerDevice(
@@ -54,7 +49,6 @@ public class DeviceController {
             ));
         }
     }
-
     @DeleteMapping("/unregister")
     @Operation(summary = "Unregister device", description = "Remove device token")
     public ResponseEntity<Map<String, Object>> unregisterDevice(
@@ -74,4 +68,3 @@ public class DeviceController {
         }
     }
 }
-

@@ -22,14 +22,11 @@ import { useCreatePost } from '@/hooks/api/use-posts';
 import { router, useFocusEffect } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadImage, uploadVideo } from '@/lib/api/upload-service';
-
 const { width } = Dimensions.get('window');
-
 interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
 }
-
 class CreatePostErrorBoundary extends Component<
   { children: ReactNode },
   ErrorBoundaryState
@@ -38,15 +35,10 @@ class CreatePostErrorBoundary extends Component<
     super(props);
     this.state = { hasError: false, error: null };
   }
-
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error };
   }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('❌ CreatePostScreen Error:', error, errorInfo);
-  }
-
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {}
   render() {
     if (this.state.hasError) {
       return (
@@ -73,16 +65,13 @@ class CreatePostErrorBoundary extends Component<
         </SafeAreaView>
       );
     }
-
     return this.props.children;
   }
 }
-
 function CreatePostScreenContent() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'] || Colors.light;
   const createPost = useCreatePost();
-  
   const [title, setTitle] = useState('');
   const [bodyText, setBodyText] = useState('');
   const [privacyType, setPrivacyType] = useState<'PUBLIC' | 'FRIENDS' | 'PRIVATE'>('PUBLIC');
@@ -99,19 +88,11 @@ function CreatePostScreenContent() {
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [locationSearch, setLocationSearch] = useState('');
   const [selectedLocationItem, setSelectedLocationItem] = useState<string | null>(null);
-
-  useEffect(() => {
-    console.log('✅ CreatePostScreen mounted');
-    return () => {
-      console.log('❌ CreatePostScreen unmounted');
-    };
+  useEffect(() => {return () => {};
   }, []);
-
   // Reset form when screen comes into focus
   useFocusEffect(
-    useCallback(() => {
-      console.log('👁️ CreatePostScreen focused');
-      // Optionally reset form when coming back to this screen
+    useCallback(() => {// Optionally reset form when coming back to this screen
       // Uncomment if you want to reset form when navigating back
       // setTitle('');
       // setBodyText('');
@@ -120,21 +101,15 @@ function CreatePostScreenContent() {
       // setPrivacyType('PUBLIC');
     }, [])
   );
-
   // Request permissions on mount
   useEffect(() => {
     (async () => {
       try {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-          console.warn('Media library permission not granted');
-        }
-      } catch (error) {
-        console.error('Error requesting permissions:', error);
-      }
+        if (status !== 'granted') {}
+      } catch (error) {}
     })();
   }, []);
-
   const handlePickImage = async () => {
     try {
       // Check permissions first
@@ -146,20 +121,16 @@ function CreatePostScreenContent() {
           return;
         }
       }
-
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         quality: 0.8,
         allowsMultipleSelection: true,
       });
-
       if (!result.canceled && result.assets) {
-        // Chỉ lưu local URIs, chưa upload lên Cloudinary
         const newMediaFiles = result.assets.slice(0, 5 - localMediaFiles.length).map((asset) => {
           const fileType = asset.mimeType || (asset.uri.endsWith('.png') ? 'image/png' : 'image/jpeg');
           const fileName = asset.fileName || `image_${Date.now()}${asset.uri.endsWith('.png') ? '.png' : '.jpg'}`;
-          
           return {
             uri: asset.uri,
             type: 'image' as const,
@@ -167,15 +138,11 @@ function CreatePostScreenContent() {
             mimeType: fileType,
           };
         });
-        
         setLocalMediaFiles([...localMediaFiles, ...newMediaFiles]);
       }
-    } catch (error: any) {
-      console.error('Image picker error:', error);
-      Alert.alert('Lỗi', error.message || 'Không thể mở thư viện ảnh');
+    } catch (error: any) {Alert.alert('Lỗi', error.message || 'Không thể mở thư viện ảnh');
     }
   };
-
   const handlePickVideo = async () => {
     try {
       // Check permissions first
@@ -187,26 +154,21 @@ function CreatePostScreenContent() {
           return;
         }
       }
-
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Videos,
         allowsEditing: false,
         quality: 0.8,
         allowsMultipleSelection: false, // Only one video at a time
       });
-
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        // Chỉ lưu local URI, chưa upload lên Cloudinary
         const asset = result.assets[0];
         const fileType = asset.mimeType || 'video/mp4';
         const fileName = asset.fileName || `video_${Date.now()}.mp4`;
-        
         // Check if we already have 5 media files
         if (localMediaFiles.length >= 5) {
           Alert.alert('Thông báo', 'Bạn chỉ có thể chọn tối đa 5 media');
           return;
         }
-        
         setLocalMediaFiles([
           ...localMediaFiles,
           {
@@ -217,37 +179,25 @@ function CreatePostScreenContent() {
           },
         ]);
       }
-    } catch (error: any) {
-      console.error('Video picker error:', error);
-      Alert.alert('Lỗi', error.message || 'Không thể mở thư viện video');
+    } catch (error: any) {Alert.alert('Lỗi', error.message || 'Không thể mở thư viện video');
     }
   };
-
   const handleRemoveMedia = (index: number) => {
     setLocalMediaFiles(localMediaFiles.filter((_, i) => i !== index));
   };
-
   const handleCreatePost = async () => {
     const content = title ? `${title}\n\n${bodyText}`.trim() : bodyText.trim();
-    
-    // API yêu cầu content không được để trống
     if (!content && localMediaFiles.length === 0) {
       Alert.alert('Lỗi', 'Vui lòng nhập nội dung hoặc thêm ảnh/video');
       return;
     }
-
-    // Kiểm tra nếu đang upload
     if (uploading) {
       Alert.alert('Thông báo', 'Đang upload media, vui lòng đợi...');
       return;
     }
-
     setUploading(true);
-    
     try {
-      // Upload tất cả media lên Cloudinary trước khi đăng bài
       const uploadedUrls: string[] = [];
-      
       for (const mediaFile of localMediaFiles) {
         try {
           let uploadResult;
@@ -265,23 +215,17 @@ function CreatePostScreenContent() {
             });
           }
           uploadedUrls.push(uploadResult.fileUrl);
-        } catch (error: any) {
-          console.error('Failed to upload media:', error);
-          Alert.alert('Lỗi', `Không thể upload ${mediaFile.type === 'image' ? 'ảnh' : 'video'}: ${mediaFile.name}`);
+        } catch (error: any) {Alert.alert('Lỗi', `Không thể upload ${mediaFile.type === 'image' ? 'ảnh' : 'video'}: ${mediaFile.name}`);
           setUploading(false);
           return;
         }
       }
-
-      // Sau khi upload xong, tạo post
       await safeCreatePost.mutateAsync({
         content: content || '📷', // Gửi emoji nếu chỉ có media
         privacyType,
         mediaUrls: uploadedUrls.length > 0 ? uploadedUrls : undefined,
         location: location.trim() || undefined,
       });
-      
-      // Reset form sau khi đăng bài thành công
       setTitle('');
       setBodyText('');
       setLocalMediaFiles([]);
@@ -289,27 +233,21 @@ function CreatePostScreenContent() {
       setPrivacyType('PUBLIC');
       setSelectedLocationItem(null);
       setLocationSearch('');
-      
       Alert.alert('Thành công', 'Đã đăng bài viết', [
         {
           text: 'OK',
           onPress: () => router.back(),
         },
       ]);
-    } catch (error: any) {
-      console.error('Failed to create post:', error);
-      Alert.alert('Lỗi', error.message || 'Không thể đăng bài viết');
+    } catch (error: any) {Alert.alert('Lỗi', error.message || 'Không thể đăng bài viết');
     } finally {
       setUploading(false);
     }
   };
-
   const handleSaveDraft = () => {
     // TODO: Implement save draft functionality
     Alert.alert('Thông báo', 'Đã lưu bản nháp');
   };
-
-  // Mock location suggestions - có thể thay bằng API sau
   const locationSuggestions = [
     'New York, USA',
     'New Orleans, USA',
@@ -319,15 +257,12 @@ function CreatePostScreenContent() {
     'New Delhi, India',
     'New Brunswick, Canada',
   ];
-
   const filteredLocations = locationSuggestions.filter((loc) =>
     loc.toLowerCase().includes(locationSearch.toLowerCase())
   );
-
   const handleLocationSelect = (locationName: string) => {
     setSelectedLocationItem(locationName);
   };
-
   const handleLocationContinue = () => {
     if (selectedLocationItem) {
       setLocation(selectedLocationItem);
@@ -336,7 +271,6 @@ function CreatePostScreenContent() {
       setLocationSearch('');
     }
   };
-
   // Ensure we always have valid values
   const safeColors = colors || Colors.light;
   const safeCreatePost = createPost || {
@@ -345,7 +279,6 @@ function CreatePostScreenContent() {
     },
     isPending: false,
   };
-
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: '#E8F4FD' }]} edges={['top']}>
       <KeyboardAvoidingView
@@ -357,10 +290,9 @@ function CreatePostScreenContent() {
           <TouchableOpacity style={styles.headerButton} onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={20} color="#000000" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Create Post</Text>
+          <Text style={styles.headerTitle}>Tạo bài viết</Text>
           <View style={styles.headerButton} />
         </View>
-
         <ScrollView 
           style={styles.body}
           contentContainerStyle={styles.bodyContent}
@@ -368,28 +300,26 @@ function CreatePostScreenContent() {
             {/* Post Content Card */}
             <View style={styles.postContentCard}>
               {/* Title */}
-              <Text style={styles.label}>Title</Text>
+              <Text style={styles.label}>Tiêu đề</Text>
               <TextInput
                 style={styles.titleInput}
-                placeholder="Enter title..."
+                placeholder="Nhập tiêu đề..."
                 placeholderTextColor="#999999"
                 value={title}
                 onChangeText={setTitle}
                 multiline
               />
-
               {/* Body Text */}
-              <Text style={[styles.label, styles.bodyLabel]}>Body Text (Optional)</Text>
+              <Text style={[styles.label, styles.bodyLabel]}>Nội dung (Tùy chọn)</Text>
               <TextInput
                 style={styles.bodyInput}
-                placeholder="Write your post content here..."
+                placeholder="Viết nội dung bài viết của bạn ở đây..."
                 placeholderTextColor="#999999"
                 value={bodyText}
                 onChangeText={setBodyText}
                 multiline
                 numberOfLines={8}
               />
-
               {/* Media Icons Row */}
               <View style={styles.mediaIconsRow}>
                 <TouchableOpacity
@@ -422,10 +352,9 @@ function CreatePostScreenContent() {
                   <Ionicons name="person-outline" size={24} color="#666666" />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.communityButton}>
-                  <Text style={styles.communityButtonText}>Community</Text>
+                  <Text style={styles.communityButtonText}>Cộng đồng</Text>
                 </TouchableOpacity>
               </View>
-
               {/* Media Preview */}
               {localMediaFiles.length > 0 && (
                 <View style={styles.mediaPreview}>
@@ -463,7 +392,6 @@ function CreatePostScreenContent() {
                 </View>
               )}
             </View>
-
             {/* Post Options */}
             <View style={styles.optionsSection}>
               <TouchableOpacity 
@@ -472,12 +400,11 @@ function CreatePostScreenContent() {
                 <View style={styles.optionLeft}>
                   <Ionicons name="location-outline" size={20} color="#666666" />
                   <Text style={styles.optionText}>
-                    {location ? location : 'Add Location'}
+                    {location ? location : 'Thêm địa điểm'}
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#CCCCCC" />
               </TouchableOpacity>
-
               <TouchableOpacity
                 style={styles.optionButton}
                 onPress={() => {
@@ -493,18 +420,17 @@ function CreatePostScreenContent() {
                     color="#666666"
                   />
                   <Text style={styles.optionText}>
-                    Share Post to {privacyType === 'PUBLIC' ? 'Public' : privacyType === 'FRIENDS' ? 'Friends' : 'Private'}
+                    Chia sẻ với {privacyType === 'PUBLIC' ? 'Công khai' : privacyType === 'FRIENDS' ? 'Bạn bè' : 'Riêng tư'}
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#CCCCCC" />
               </TouchableOpacity>
             </View>
           </ScrollView>
-
         {/* Footer Buttons */}
         <View style={styles.footer}>
           <TouchableOpacity style={styles.draftButton} onPress={handleSaveDraft}>
-            <Text style={styles.draftButtonText}>Save as Draft</Text>
+            <Text style={styles.draftButtonText}>Lưu nháp</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[
@@ -516,12 +442,11 @@ function CreatePostScreenContent() {
             {safeCreatePost.isPending || uploading ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
-              <Text style={styles.postButtonText}>Post</Text>
+              <Text style={styles.postButtonText}>Đăng</Text>
             )}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-
       {/* Location Picker Modal */}
       <Modal
         visible={showLocationModal}
@@ -538,25 +463,22 @@ function CreatePostScreenContent() {
             style={styles.modalContent}>
             {/* Drag Handle */}
             <View style={styles.dragHandle} />
-
             {/* Modal Header */}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Location</Text>
             </View>
-
             {/* Search Bar */}
             <View style={styles.searchContainer}>
               <Ionicons name="search" size={20} color="#999999" style={styles.searchIcon} />
               <TextInput
                 style={styles.searchInput}
-                placeholder="Search location..."
+                placeholder="Tìm kiếm địa điểm..."
                 placeholderTextColor="#999999"
                 value={locationSearch}
                 onChangeText={setLocationSearch}
                 autoFocus
               />
             </View>
-
             {/* Location List */}
             <ScrollView style={styles.locationList} showsVerticalScrollIndicator={false}>
               {filteredLocations.map((loc, index) => (
@@ -582,7 +504,6 @@ function CreatePostScreenContent() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
-
             {/* Continue Button */}
             <TouchableOpacity
               style={[
@@ -599,7 +520,6 @@ function CreatePostScreenContent() {
     </SafeAreaView>
   );
 }
-
 // Wrapper component with error boundary
 export default function CreatePostScreen() {
   return (
@@ -608,7 +528,6 @@ export default function CreatePostScreen() {
     </CreatePostErrorBoundary>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,

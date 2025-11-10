@@ -11,11 +11,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/contexts/auth-context';
-
 export default function LoginScreen() {
   const params = useLocalSearchParams<{ username?: string }>();
   const { status, signIn } = useAuth();
@@ -23,11 +21,9 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   if (status === 'authenticated') {
     return <Redirect href="/(tabs)/feed" />;
   }
-
   if (status === 'loading') {
     return (
       <View style={styles.loadingContainer}>
@@ -35,25 +31,20 @@ export default function LoginScreen() {
       </View>
     );
   }
-
   const handleSubmit = async () => {
     if (!username || !password) {
       setErrorMessage('Vui lòng nhập đầy đủ thông tin đăng nhập');
       return;
     }
-
     setIsSubmitting(true);
     setErrorMessage(null);
-
     try {
       await signIn({ username, password });
-      // Chuyển đến trang Feed sau khi đăng nhập thành công
       router.replace('/(tabs)/feed');
     } catch (error: any) {
       // Extract error message from different sources
       let errorMessage = '';
       let errorDetails: any = null;
-      
       // Try to get message from error.details (response body) - this is where backend error message is
       if (error?.details) {
         errorDetails = error.details;
@@ -71,18 +62,14 @@ export default function LoginScreen() {
           errorMessage = errorDetails.error;
         }
       }
-      
       // Fallback to error.message (which should already contain the message from http-client)
       if (!errorMessage && error?.message) {
         errorMessage = error.message;
       }
-      
-      // Kiểm tra nếu tài khoản bị chặn (check multiple patterns)
       const blockedPatterns = ['bị chặn', 'bị khóa', 'blocked', 'khóa', 'chặn', 'đã bị'];
       const isBlocked = blockedPatterns.some(pattern => 
         errorMessage.toLowerCase().includes(pattern.toLowerCase())
       );
-      
       if (isBlocked) {
         Alert.alert(
           'Tài khoản đã bị khóa',
@@ -97,8 +84,6 @@ export default function LoginScreen() {
         setIsSubmitting(false);
         return;
       }
-      
-      // Kiểm tra các trường hợp đặc biệt khác
       if (errorMessage.includes('not verified') || errorMessage.includes('chưa xác thực')) {
         Alert.alert(
           'Chưa xác thực',
@@ -113,25 +98,19 @@ export default function LoginScreen() {
         setIsSubmitting(false);
         return;
       }
-      
-      // Xử lý các lỗi khác
       let displayMessage = 'Đăng nhập thất bại';
-      
       if (error?.status === 401) {
         displayMessage = 'Tên đăng nhập hoặc mật khẩu không chính xác';
       } else if (error?.status === 0) {
-        // Network error - server không thể kết nối
         displayMessage = 'Không thể kết nối tới máy chủ. Vui lòng kiểm tra:\n- Kết nối mạng\n- Backend đang chạy\n- Địa chỉ API đúng';
       } else if (errorMessage && !errorMessage.match(/^\d{3}\s/)) {
         // Use error message if it's not just a status code
         displayMessage = errorMessage;
       }
-
       setErrorMessage(displayMessage);
       setIsSubmitting(false);
     }
   };
-
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
@@ -177,7 +156,6 @@ export default function LoginScreen() {
             <ThemedText style={styles.buttonText}>Đăng nhập</ThemedText>
           )}
         </TouchableOpacity>
-        
         <TouchableOpacity
           style={styles.linkButton}
           onPress={() => router.push('/(auth)/register')}
@@ -191,7 +169,6 @@ export default function LoginScreen() {
     </SafeAreaView>
   );
 }
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,

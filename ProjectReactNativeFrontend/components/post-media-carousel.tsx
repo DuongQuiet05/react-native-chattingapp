@@ -12,32 +12,25 @@ import {
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import { Colors, BorderRadius } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
-
 const { width } = Dimensions.get('window');
-
 /**
  * Check if a URL is a video based on extension or Cloudinary path
  */
 function isVideoUrl(url: string): boolean {
   if (!url) return false;
-  
   // Check for video file extensions
   const videoExtensions = ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v', '.3gp'];
   const lowerUrl = url.toLowerCase();
-  
   // Check extension
   if (videoExtensions.some(ext => lowerUrl.includes(ext))) {
     return true;
   }
-  
   // Check Cloudinary video path pattern
   if (lowerUrl.includes('/video/upload/') || lowerUrl.includes('/video/')) {
     return true;
   }
-  
   return false;
 }
-
 interface PostMediaCarouselProps {
   mediaUrls: string[];
   imageWidth?: number;
@@ -49,7 +42,6 @@ interface PostMediaCarouselProps {
   isMuted?: boolean; // Mute video by default
   showMuteButton?: boolean; // Show mute/unmute button overlay (for feed)
 }
-
 export function PostMediaCarousel({
   mediaUrls,
   imageWidth = width - 32, // Default: width - padding
@@ -66,47 +58,32 @@ export function PostMediaCarousel({
   const currentIndexRef = useRef(0);
   const videoRefs = useRef<{ [key: number]: Video | null }>({});
   const [isMutedState, setIsMutedState] = useState(isMuted); // Local state for mute toggle
-
-  // Chỉ hiển thị dots nếu có từ 2 ảnh trở lên
   const showDots = mediaUrls.length >= 2;
-
   // Detect media types
   const mediaTypes = mediaUrls.map(url => (isVideoUrl(url) ? 'video' : 'image'));
-
-  // Update mute state when isMuted prop changes
   useEffect(() => {
     setIsMutedState(isMuted);
   }, [isMuted]);
-
   // Toggle mute for current video
   const toggleMute = useCallback(() => {
     setIsMutedState((prev) => {
       const newMutedState = !prev;
-      // Update mute state for current video immediately
       const currentVideoRef = videoRefs.current[currentIndex];
       if (currentVideoRef) {
-        currentVideoRef.setIsMutedAsync(newMutedState).catch((error) => {
-          console.error('Failed to toggle mute:', error);
-        });
+        currentVideoRef.setIsMutedAsync(newMutedState).catch((error) => {});
       }
       return newMutedState;
     });
   }, [currentIndex]);
-
-  // Update ref khi state thay đổi
   useEffect(() => {
     currentIndexRef.current = currentIndex;
   }, [currentIndex]);
-
-  // Reset index khi số lượng media thay đổi
   useEffect(() => {
     if (currentIndex >= mediaUrls.length) {
       setCurrentIndex(0);
       currentIndexRef.current = 0;
     }
   }, [mediaUrls.length, currentIndex]);
-
-  // Auto-play video when shouldPlay changes
   useEffect(() => {
     if (shouldPlay && autoPlay) {
       const currentMediaType = mediaTypes[currentIndex];
@@ -114,38 +91,28 @@ export function PostMediaCarousel({
         const videoRef = videoRefs.current[currentIndex];
         if (videoRef) {
           // Apply mute state first, then play
-          videoRef.setIsMutedAsync(isMutedState).catch((error) => {
-            console.error('Failed to set mute state:', error);
-          });
-          videoRef.playAsync().catch((error) => {
-            console.error('Failed to play video:', error);
-          });
+          videoRef.setIsMutedAsync(isMutedState).catch((error) => {});
+          videoRef.playAsync().catch((error) => {});
         }
       }
     } else {
       // Pause all videos when shouldPlay is false
       Object.values(videoRefs.current).forEach((videoRef) => {
         if (videoRef) {
-          videoRef.pauseAsync().catch((error) => {
-            console.error('Failed to pause video:', error);
-          });
+          videoRef.pauseAsync().catch((error) => {});
         }
       });
     }
   }, [shouldPlay, autoPlay, currentIndex, mediaTypes, isMutedState]);
-
   // Sync mute state when isMutedState changes
   useEffect(() => {
     if (shouldPlay && autoPlay && mediaTypes[currentIndex] === 'video') {
       const videoRef = videoRefs.current[currentIndex];
       if (videoRef) {
-        videoRef.setIsMutedAsync(isMutedState).catch((error) => {
-          console.error('Failed to sync mute state:', error);
-        });
+        videoRef.setIsMutedAsync(isMutedState).catch((error) => {});
       }
     }
   }, [isMutedState, currentIndex, shouldPlay, autoPlay, mediaTypes]);
-
   // Pause previous video when index changes
   useEffect(() => {
     Object.keys(videoRefs.current).forEach((key) => {
@@ -153,41 +120,28 @@ export function PostMediaCarousel({
       if (index !== currentIndex) {
         const videoRef = videoRefs.current[index];
         if (videoRef) {
-          videoRef.pauseAsync().catch((error) => {
-            console.error('Failed to pause video:', error);
-          });
+          videoRef.pauseAsync().catch((error) => {});
         }
       }
     });
-
-    // Auto-play current video if shouldPlay is true
     if (shouldPlay && autoPlay && mediaTypes[currentIndex] === 'video') {
       const videoRef = videoRefs.current[currentIndex];
       if (videoRef) {
         // Apply mute state first, then play
-        videoRef.setIsMutedAsync(isMutedState).catch((error) => {
-          console.error('Failed to set mute state:', error);
-        });
-        videoRef.playAsync().catch((error) => {
-          console.error('Failed to play video:', error);
-        });
+        videoRef.setIsMutedAsync(isMutedState).catch((error) => {});
+        videoRef.playAsync().catch((error) => {});
       }
     }
   }, [currentIndex, shouldPlay, autoPlay, mediaTypes, isMutedState]);
-
-  // Cleanup: pause all videos when component unmounts
   useEffect(() => {
     return () => {
       Object.values(videoRefs.current).forEach((videoRef) => {
         if (videoRef) {
-          videoRef.pauseAsync().catch((error) => {
-            console.error('Failed to pause video on cleanup:', error);
-          });
+          videoRef.pauseAsync().catch((error) => {});
         }
       });
     };
   }, []);
-
   const onMomentumScrollEnd = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       const scrollPosition = event.nativeEvent.contentOffset.x;
@@ -198,24 +152,20 @@ export function PostMediaCarousel({
     },
     [imageWidth, mediaUrls.length],
   );
-
   const onScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       const scrollPosition = event.nativeEvent.contentOffset.x;
       const index = Math.round(scrollPosition / imageWidth);
-      // Update index trong quá trình scroll để dots cập nhật mượt mà
       if (index >= 0 && index < mediaUrls.length && index !== currentIndexRef.current) {
         setCurrentIndex(index);
       }
     },
     [imageWidth, mediaUrls.length],
   );
-
   const renderItem = ({ item, index }: { item: string; index: number }) => {
     const isVideo = isVideoUrl(item);
     const isCurrentItem = index === currentIndex;
     const shouldPlayVideo = shouldPlay && autoPlay && isCurrentItem && isVideo;
-
     if (isVideo) {
       return (
         <View style={[styles.videoContainer, { width: imageWidth, height: imageHeight }]}>
@@ -237,9 +187,7 @@ export function PostMediaCarousel({
                 // Video finished, restart if looping (only if not using native controls)
                 const videoRef = videoRefs.current[index];
                 if (videoRef && shouldPlayVideo) {
-                  videoRef.replayAsync().catch((error) => {
-                    console.error('Failed to replay video:', error);
-                  });
+                  videoRef.replayAsync().catch((error) => {});
                 }
               }
             }}
@@ -250,9 +198,7 @@ export function PostMediaCarousel({
               onPress={() => {
                 const videoRef = videoRefs.current[index];
                 if (videoRef) {
-                  videoRef.playAsync().catch((error) => {
-                    console.error('Failed to play video:', error);
-                  });
+                  videoRef.playAsync().catch((error) => {});
                 }
               }}
               activeOpacity={0.8}>
@@ -282,7 +228,6 @@ export function PostMediaCarousel({
         </View>
       );
     }
-
     return (
       <View style={[styles.imageContainer, { width: imageWidth, height: imageHeight }]}>
         <Image
@@ -293,16 +238,12 @@ export function PostMediaCarousel({
       </View>
     );
   };
-
   if (mediaUrls.length === 0) {
     return null;
   }
-
-  // Nếu chỉ có 1 media item, không cần carousel và không hiển thị dots
   if (mediaUrls.length === 1) {
     const isVideo = isVideoUrl(mediaUrls[0]);
     const shouldPlayVideo = shouldPlay && autoPlay && isVideo;
-
     if (isVideo) {
       return (
         <View style={styles.container}>
@@ -327,9 +268,7 @@ export function PostMediaCarousel({
                 onPress={() => {
                   const videoRef = videoRefs.current[0];
                   if (videoRef) {
-                    videoRef.playAsync().catch((error) => {
-                      console.error('Failed to play video:', error);
-                    });
+                    videoRef.playAsync().catch((error) => {});
                   }
                 }}
                 activeOpacity={0.8}>
@@ -360,7 +299,6 @@ export function PostMediaCarousel({
         </View>
       );
     }
-
     return (
       <View style={styles.container}>
         <View style={[styles.imageContainer, { width: imageWidth, height: imageHeight }]}>
@@ -373,7 +311,6 @@ export function PostMediaCarousel({
       </View>
     );
   }
-
   return (
     <View style={styles.container}>
       <FlatList
@@ -415,7 +352,6 @@ export function PostMediaCarousel({
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     position: 'relative',
@@ -514,4 +450,3 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.6)',
   },
 });
-

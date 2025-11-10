@@ -28,20 +28,15 @@ import { contactQueryKeys } from '@/hooks/api/use-contacts';
 import { getOrCreatePrivateConversation } from '@/lib/api/conversations';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-
 dayjs.extend(relativeTime);
-
 const { width } = Dimensions.get('window');
-
 function PostCard({ post }: { post: any }) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-
   const formatNumber = (num: number) => {
     if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
     return num.toString();
   };
-
   return (
     <View style={styles.postCard}>
       <View style={styles.postHeader}>
@@ -96,20 +91,16 @@ function PostCard({ post }: { post: any }) {
     </View>
   );
 }
-
 export default function UserProfileScreen() {
   const { userId } = useLocalSearchParams<{ userId: string }>();
   const { user: currentUser } = useAuth();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   const queryClient = useQueryClient();
-  
   const userIdNum = parseInt(userId || '0', 10);
   const isOwnProfile = currentUser?.id === userIdNum;
-  
   const { data: profile, isLoading, refetch } = useUserProfile(userIdNum);
   const { data: postsData } = useUserPosts(userIdNum);
-  
   const [relationshipStatus, setRelationshipStatus] = useState<RelationshipStatus | null>(null);
   const [mutualFriendsCount, setMutualFriendsCount] = useState(0);
   const [mutualFriends, setMutualFriends] = useState<FriendProfile[]>([]);
@@ -119,15 +110,12 @@ export default function UserProfileScreen() {
   const [friendDropdownVisible, setFriendDropdownVisible] = useState(false);
   const [unfriending, setUnfriending] = useState(false);
   const [loadingConversation, setLoadingConversation] = useState(false);
-  
   const [activeTab, setActiveTab] = useState<'Activity' | 'Post' | 'Tagged' | 'Media'>('Activity');
-
   // Block functionality
   const { data: checkBlockedData } = useCheckBlocked(userIdNum);
   const isBlocked = checkBlockedData?.isBlocked || false;
   const blockUserMutation = useBlockUser();
   const unblockUserMutation = useUnblockUser();
-
   // Load relationship status and mutual friends
   useEffect(() => {
     if (!isOwnProfile && userIdNum && currentUser?.id) {
@@ -136,7 +124,6 @@ export default function UserProfileScreen() {
         .then((response) => {
           setRelationshipStatus(response.relationshipStatus);
           setMutualFriendsCount(response.mutualFriendsCount);
-          
           // Load mutual friends list if there are mutual friends
           if (response.mutualFriendsCount > 0) {
             getFriendsList()
@@ -145,15 +132,11 @@ export default function UserProfileScreen() {
                 // In a real app, you'd need an API endpoint to get mutual friends list
                 setMutualFriends(currentUserFriends.slice(0, Math.min(10, response.mutualFriendsCount)));
               })
-              .catch((error) => {
-                console.warn('Could not load friends list:', error);
-                // Continue without mutual friends list
+              .catch((error) => {// Continue without mutual friends list
               });
           }
         })
-        .catch((error) => {
-          console.error('Error loading relationship:', error);
-          // Set default status if error
+        .catch((error) => {// Set default status if error
           setRelationshipStatus('STRANGER');
         })
         .finally(() => {
@@ -161,30 +144,22 @@ export default function UserProfileScreen() {
         });
     }
   }, [userIdNum, isOwnProfile, currentUser?.id]);
-
   const handleSendFriendRequest = () => {
     if (profile) {
       setModalVisible(true);
     }
   };
-
   const handleMessage = async () => {
     if (!profile || !currentUser?.id) return;
-    
     try {
       setLoadingConversation(true);
-      // Tạo hoặc lấy conversation với người này
       const conversation = await getOrCreatePrivateConversation(userIdNum);
-      // Navigate đến trang chat với conversationId đúng
       router.push(`/chat/${conversation.id}` as any);
-    } catch (error: any) {
-      console.error('Error getting conversation:', error);
-      Alert.alert('Lỗi', 'Không thể tạo cuộc trò chuyện. Vui lòng thử lại.');
+    } catch (error: any) {Alert.alert('Lỗi', 'Không thể tạo cuộc trò chuyện. Vui lòng thử lại.');
     } finally {
       setLoadingConversation(false);
     }
   };
-
   const handleModalSuccess = async () => {
     setModalVisible(false);
     // Refresh relationship status
@@ -196,7 +171,6 @@ export default function UserProfileScreen() {
       }
     }
   };
-
   const handleBlock = async () => {
     setMenuVisible(false);
     Alert.alert(
@@ -220,7 +194,6 @@ export default function UserProfileScreen() {
       ]
     );
   };
-
   const handleUnblock = async () => {
     setMenuVisible(false);
     Alert.alert(
@@ -242,12 +215,10 @@ export default function UserProfileScreen() {
       ]
     );
   };
-
   const handleReport = () => {
     setMenuVisible(false);
     Alert.alert('Báo cáo', 'Tính năng báo cáo sẽ được triển khai trong tương lai');
   };
-
   const handleUnfriend = async () => {
     setFriendDropdownVisible(false);
     Alert.alert(
@@ -262,22 +233,16 @@ export default function UserProfileScreen() {
             try {
               setUnfriending(true);
               await removeFriend(userIdNum);
-              
-              // Invalidate và refetch ngay lập tức cache danh sách bạn bè
               await queryClient.invalidateQueries({ queryKey: contactQueryKeys.all });
               await queryClient.refetchQueries({ queryKey: contactQueryKeys.all });
               queryClient.invalidateQueries({ queryKey: ['friends'] });
-              
               Alert.alert('Thành công', 'Đã hủy kết bạn');
-              
               // Refresh relationship status
               try {
                 const response = await getRelationshipStatus(userIdNum);
                 setRelationshipStatus(response.relationshipStatus);
                 setMutualFriendsCount(response.mutualFriendsCount);
-              } catch (error) {
-                console.error('Error refreshing relationship status:', error);
-              }
+              } catch (error) {}
             } catch (error: any) {
               Alert.alert('Lỗi', error.message || 'Không thể hủy kết bạn');
             } finally {
@@ -288,12 +253,10 @@ export default function UserProfileScreen() {
       ]
     );
   };
-
   const formatNumber = (num: number) => {
     if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
     return num.toString();
   };
-
   const renderActionButtons = () => {
     if (isOwnProfile) {
       return (
@@ -301,12 +264,11 @@ export default function UserProfileScreen() {
           <TouchableOpacity
             style={[styles.actionButton, styles.editButton]}
             onPress={() => router.push('/(tabs)/settings' as any)}>
-            <Text style={styles.editButtonText}>Edit Profile</Text>
+            <Text style={styles.editButtonText}>Chỉnh sửa hồ sơ</Text>
           </TouchableOpacity>
         </View>
       );
     }
-
     if (loadingRelationship) {
       return (
         <View style={styles.actionButtons}>
@@ -314,7 +276,6 @@ export default function UserProfileScreen() {
         </View>
       );
     }
-
     return (
       <View style={styles.actionButtons}>
         {isBlocked ? (
@@ -353,7 +314,7 @@ export default function UserProfileScreen() {
               {loadingConversation ? (
                 <ActivityIndicator size="small" color="#000" />
               ) : (
-                <Text style={styles.messageButtonText}>Message</Text>
+                <Text style={styles.messageButtonText}>Nhắn tin</Text>
               )}
             </TouchableOpacity>
           </>
@@ -361,7 +322,6 @@ export default function UserProfileScreen() {
       </View>
     );
   };
-
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -371,7 +331,6 @@ export default function UserProfileScreen() {
       </SafeAreaView>
     );
   }
-
   if (!profile) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -384,11 +343,9 @@ export default function UserProfileScreen() {
       </SafeAreaView>
     );
   }
-
   const postCount = postsData?.content?.length || 0;
   const followersCount = 0; // TODO: Get from API
   const followingCount = 0; // TODO: Get from API
-
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: '#F5F5F5' }]} edges={['top']}>
       {/* Header */}
@@ -404,7 +361,6 @@ export default function UserProfileScreen() {
         )}
         {isOwnProfile && <View style={{ width: 24 }} />}
       </View>
-
       <ScrollView
         style={styles.container}
         showsVerticalScrollIndicator={false}
@@ -420,53 +376,57 @@ export default function UserProfileScreen() {
             <View style={styles.statsContainer}>
               <View style={styles.statItem}>
                 <Text style={styles.statNumber}>{postCount}</Text>
-                <Text style={styles.statLabel}>Post</Text>
+                <Text style={styles.statLabel}>Bài viết</Text>
               </View>
               <View style={styles.statItem}>
                 <Text style={styles.statNumber}>{formatNumber(followersCount)}</Text>
-                <Text style={styles.statLabel}>Followers</Text>
+                <Text style={styles.statLabel}>Người theo dõi</Text>
               </View>
               <View style={styles.statItem}>
                 <Text style={styles.statNumber}>{formatNumber(followingCount)}</Text>
-                <Text style={styles.statLabel}>Following</Text>
+                <Text style={styles.statLabel}>Đang theo dõi</Text>
               </View>
             </View>
           </View>
-
           {/* Name and Bio */}
           <Text style={styles.name}>{profile.displayName}</Text>
           {profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
-
           {/* Action Buttons */}
           {renderActionButtons()}
         </View>
-
         {/* Tabs */}
         <View style={styles.tabsContainer}>
-          {(['Activity', 'Post', 'Tagged', 'Media'] as const).map((tab) => (
-            <TouchableOpacity
-              key={tab}
-              style={[
-                styles.tab,
-                activeTab === tab && styles.activeTab,
-              ]}
-              onPress={() => setActiveTab(tab)}>
-              <Text
+          {(['Activity', 'Post', 'Tagged', 'Media'] as const).map((tab) => {
+            const tabLabels: Record<string, string> = {
+              'Activity': 'Hoạt động',
+              'Post': 'Bài viết',
+              'Tagged': 'Đã gắn thẻ',
+              'Media': 'Phương tiện',
+            };
+            return (
+              <TouchableOpacity
+                key={tab}
                 style={[
-                  styles.tabText,
-                  activeTab === tab && styles.activeTabText,
-                ]}>
-                {tab}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                  styles.tab,
+                  activeTab === tab && styles.activeTab,
+                ]}
+                onPress={() => setActiveTab(tab)}>
+                <Text
+                  style={[
+                    styles.tabText,
+                    activeTab === tab && styles.activeTabText,
+                  ]}>
+                  {tabLabels[tab] || tab}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
-
         {/* Mutual Friends Section */}
         {!isOwnProfile && mutualFriendsCount > 0 && (
           <View style={styles.mutualFriendsCard}>
             <View style={styles.mutualFriendsHeader}>
-              <Text style={styles.mutualFriendsTitle}>Mutual Friends</Text>
+              <Text style={styles.mutualFriendsTitle}>Bạn chung</Text>
               <TouchableOpacity>
                 <Ionicons name="close" size={20} color="#666" />
               </TouchableOpacity>
@@ -488,14 +448,13 @@ export default function UserProfileScreen() {
                     @{friend.username}
                   </Text>
                   <TouchableOpacity style={styles.followButtonSmall}>
-                    <Text style={styles.followButtonSmallText}>Follow</Text>
+                    <Text style={styles.followButtonSmallText}>Theo dõi</Text>
                   </TouchableOpacity>
                 </TouchableOpacity>
               ))}
             </ScrollView>
           </View>
         )}
-
         {/* Posts Feed */}
         {activeTab === 'Activity' && postsData?.content && postsData.content.length > 0 && (
           <View style={styles.postsContainer}>
@@ -505,7 +464,6 @@ export default function UserProfileScreen() {
           </View>
         )}
       </ScrollView>
-
       {/* Send Friend Request Modal */}
       {profile && (
         <SendFriendRequestModal
@@ -516,7 +474,6 @@ export default function UserProfileScreen() {
           onSuccess={handleModalSuccess}
         />
       )}
-
       {/* Friend Dropdown Modal */}
       <Modal
         visible={friendDropdownVisible}
@@ -539,7 +496,6 @@ export default function UserProfileScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
-
       {/* Menu Modal */}
       <Modal
         visible={menuVisible}
@@ -574,7 +530,6 @@ export default function UserProfileScreen() {
     </SafeAreaView>
   );
 }
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,

@@ -1,9 +1,7 @@
 import { API_BASE_URL } from '@/constants/config';
-
 export class ApiError extends Error {
   status: number;
   details: unknown;
-
   constructor(message: string, status: number, details?: unknown) {
     super(message);
     this.name = 'ApiError';
@@ -11,52 +9,40 @@ export class ApiError extends Error {
     this.details = details;
   }
 }
-
 let accessToken: string | null = null;
 let unauthorizedHandler: (() => void) | null = null;
-
 export function setAccessToken(token: string | null) {
   accessToken = token;
 }
-
 export function setUnauthorizedHandler(handler: (() => void) | null) {
   unauthorizedHandler = handler;
 }
-
 type RequestOptions = Omit<RequestInit, 'headers'> & {
   headers?: Record<string, string>;
 };
-
 export async function apiFetch<TResponse>(path: string, options: RequestOptions = {}) {
   const url = path.startsWith('http') ? path : `${API_BASE_URL}${path}`;
-  
   const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
   const headers: Record<string, string> = {
     Accept: 'application/json',
     ...(!isFormData && options.body ? { 'Content-Type': 'application/json' } : {}),
     ...options.headers,
   };
-
   if (accessToken) {
     headers.Authorization = `Bearer ${accessToken}`;
   }
-
   let response: Response;
-
   try {
     response = await fetch(url, { ...options, headers });
   } catch (error) {
     throw new ApiError('Không thể kết nối tới máy chủ', 0, error);
   }
-
   if (!response.ok) {
     if (response.status === 401) {
       unauthorizedHandler?.();
     }
-
     let details: unknown;
     let errorMessage = `${response.status} ${response.statusText}`;
-
     try {
       details = await response.json();
       // Try to extract message from error response
@@ -94,13 +80,10 @@ export async function apiFetch<TResponse>(path: string, options: RequestOptions 
         // Fallback to status text
       }
     }
-
     throw new ApiError(errorMessage, response.status, details);
   }
-
   if (response.status === 204) {
     return null as TResponse;
   }
-
   return (await response.json()) as TResponse;
 }

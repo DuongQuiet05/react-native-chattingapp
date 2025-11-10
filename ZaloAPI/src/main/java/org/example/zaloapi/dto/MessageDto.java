@@ -1,12 +1,9 @@
 package org.example.zaloapi.dto;
-
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.time.LocalDateTime;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -20,7 +17,6 @@ public class MessageDto {
     private String content;
     private String messageType;
     private LocalDateTime sentAt;
-
     // File attachment fields
     private String fileUrl;
     private String fileName;
@@ -28,4 +24,3 @@ public class MessageDto {
     private String fileType;
     private String thumbnailUrl;
 }
-

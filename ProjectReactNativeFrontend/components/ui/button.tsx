@@ -2,14 +2,12 @@ import React from 'react';
 import { ActivityIndicator, StyleSheet, TouchableOpacity, TouchableOpacityProps, Text } from 'react-native';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors, BorderRadius } from '@/constants/theme';
-
 interface ButtonProps extends TouchableOpacityProps {
   variant?: 'primary' | 'secondary' | 'outline' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   loading?: boolean;
   fullWidth?: boolean;
 }
-
 export function Button({
   children,
   variant = 'primary',
@@ -22,7 +20,6 @@ export function Button({
 }: ButtonProps) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-
   const getVariantStyles = () => {
     switch (variant) {
       case 'primary':
@@ -50,7 +47,6 @@ export function Button({
         return {};
     }
   };
-
   const getSizeStyles = () => {
     switch (size) {
       case 'sm':
@@ -63,9 +59,7 @@ export function Button({
         return {};
     }
   };
-
   const sizeStyles = getSizeStyles();
-
   return (
     <TouchableOpacity
       style={[
@@ -94,7 +88,6 @@ export function Button({
     </TouchableOpacity>
   );
 }
-
 const styles = StyleSheet.create({
   button: {
     borderRadius: BorderRadius.md,
@@ -106,4 +99,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-

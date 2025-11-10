@@ -15,7 +15,6 @@ import {
 } from 'react-native';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
-
 interface SendFriendRequestModalProps {
   visible: boolean;
   recipientId: number;
@@ -23,7 +22,6 @@ interface SendFriendRequestModalProps {
   onClose: () => void;
   onSuccess: () => void;
 }
-
 export function SendFriendRequestModal({
   visible,
   recipientId,
@@ -33,47 +31,28 @@ export function SendFriendRequestModal({
 }: SendFriendRequestModalProps) {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
-
   const handleSend = async () => {
     setLoading(true);
     try {
-      // 1. Gửi lời mời kết bạn
       await sendFriendRequest({
         receiverId: recipientId,
         message: message.trim() || undefined,
       });
-
-      // 2. Nếu có tin nhắn, tạo conversation và gửi tin nhắn đầu tiên
       if (message.trim()) {
-        try {
-          console.log('📨 Creating conversation and sending first message...');
-          
-          // Tạo hoặc lấy conversation với người này
-          const conversation = await getOrCreatePrivateConversation(recipientId);
-          console.log('✅ Conversation created:', conversation.id);
-          
-          // Gửi tin nhắn đầu tiên
+        try {// Tạo hoặc lấy conversation với người này
+          const conversation = await getOrCreatePrivateConversation(recipientId);// Gửi tin nhắn đầu tiên
           await sendMessage({
             conversationId: conversation.id,
             content: message.trim(),
             messageType: 'TEXT',
-          });
-          console.log('✅ First message sent');
-        } catch (conversationError) {
-          console.warn('⚠️ Could not create conversation/send message:', conversationError);
-          // Không báo lỗi cho user vì lời mời kết bạn đã gửi thành công
+          });} catch (conversationError) {// Không báo lỗi cho user vì lời mời kết bạn đã gửi thành công
         }
       }
-
       Alert.alert('Thành công', 'Đã gửi lời mời kết bạn!');
       setMessage('');
       onSuccess();
       onClose();
-    } catch (error: any) {
-      console.error('Send friend request error:', error);
-      
-      let errorMessage = 'Không thể gửi lời mời kết bạn';
-      
+    } catch (error: any) {let errorMessage = 'Không thể gửi lời mời kết bạn';
       if (error?.details?.message) {
         errorMessage = error.details.message;
       } else if (error?.message) {
@@ -85,20 +64,17 @@ export function SendFriendRequestModal({
           errorMessage = 'Người dùng này chỉ chấp nhận lời mời từ bạn chung';
         }
       }
-      
       Alert.alert('Lỗi', errorMessage);
     } finally {
       setLoading(false);
     }
   };
-
   const handleClose = () => {
     if (!loading) {
       setMessage('');
       onClose();
     }
   };
-
   return (
     <Modal
       visible={visible}
@@ -116,11 +92,9 @@ export function SendFriendRequestModal({
               <ThemedText type="subtitle" style={styles.title}>
                 Gửi lời mời kết bạn
               </ThemedText>
-
               <ThemedText style={styles.recipient}>
                 Đến: {recipientName}
               </ThemedText>
-
               <TextInput
                 style={styles.input}
                 placeholder="Tin nhắn kèm theo (tùy chọn)"
@@ -132,11 +106,9 @@ export function SendFriendRequestModal({
                 editable={!loading}
                 textAlignVertical="top"
               />
-
               <ThemedText style={styles.charCount}>
                 {message.length}/150
               </ThemedText>
-
               <View style={styles.buttons}>
                 <TouchableOpacity
                   style={[styles.button, styles.cancelButton]}
@@ -144,7 +116,6 @@ export function SendFriendRequestModal({
                   disabled={loading}>
                   <ThemedText style={styles.cancelButtonText}>Hủy</ThemedText>
                 </TouchableOpacity>
-
                 <TouchableOpacity
                   style={[styles.button, styles.sendButton, loading && styles.buttonDisabled]}
                   onPress={handleSend}
@@ -163,7 +134,6 @@ export function SendFriendRequestModal({
     </Modal>
   );
 }
-
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,

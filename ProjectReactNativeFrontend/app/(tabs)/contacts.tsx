@@ -5,23 +5,18 @@ import { router } from 'expo-router';
 import { useCallback, useMemo } from 'react';
 import { ActivityIndicator, Image, SectionList, StyleSheet, TouchableOpacity, View, Text, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
 import { useContacts } from '@/hooks/api/use-contacts';
 import { useFriendRequests } from '@/hooks/api/use-friend-requests';
 import { useFriendRequestsCount } from '@/hooks/api/use-friend-requests-count';
 import type { FriendRequest } from '@/lib/api/friends';
 import type { Contact } from '@/lib/api/users';
-
 dayjs.extend(relativeTime);
-
 export default function ContactsScreen() {
   const { data: contacts, isLoading: contactsLoading, isError: contactsError, refetch: refetchContacts, isFetching: contactsFetching } = useContacts();
   const { data: friendRequests, isLoading: requestsLoading, isError: requestsError, refetch: refetchRequests, isFetching: requestsFetching } = useFriendRequests();
   const { data: friendRequestCount } = useFriendRequestsCount();
-
   const sections = useMemo(() => {
     const result = [];
-    
     // Add friend requests section if there are any
     if (friendRequests && friendRequests.length > 0) {
       result.push({
@@ -30,7 +25,6 @@ export default function ContactsScreen() {
         type: 'requests' as const,
       });
     }
-    
     // Add friends section
     if (contacts && contacts.length > 0) {
       result.push({
@@ -39,18 +33,14 @@ export default function ContactsScreen() {
         type: 'friends' as const,
       });
     }
-    
     return result;
   }, [friendRequests, contacts]);
-
   const handleRefresh = useCallback(() => {
     void refetchContacts();
     void refetchRequests();
   }, [refetchContacts, refetchRequests]);
-
   const renderFriendRequestItem = useCallback(({ item }: { item: FriendRequest }) => {
     const timeAgo = dayjs(item.createdAt).fromNow();
-    
     return (
       <TouchableOpacity 
         style={styles.requestContainer}
@@ -62,7 +52,6 @@ export default function ContactsScreen() {
           source={{ uri: item.sender.avatarUrl || 'https://i.pravatar.cc/150' }}
           style={styles.avatar}
         />
-        
         <View style={styles.requestInfo}>
           <Text style={styles.nameText}>{item.sender.displayName ?? item.sender.username}</Text>
           <Text style={styles.itemSubtitle}>
@@ -70,18 +59,15 @@ export default function ContactsScreen() {
           </Text>
           <Text style={styles.timeText}>{timeAgo}</Text>
         </View>
-
         <View style={styles.requestBadge}>
           <Ionicons name="person-add" size={18} color="#fff" />
         </View>
       </TouchableOpacity>
     );
   }, []);
-
   const renderFriendItem = useCallback(({ item }: { item: Contact }) => {
     const lastSeenLabel = item.lastSeen ? dayjs(item.lastSeen).fromNow() : 'Không rõ';
     const isOnline = item.status === 'ONLINE';
-
     return (
       <TouchableOpacity 
         style={styles.itemContainer}
@@ -96,19 +82,16 @@ export default function ContactsScreen() {
           />
           {isOnline && <View style={styles.onlineBadge} />}
         </View>
-        
         <View style={styles.contactInfo}>
           <Text style={styles.nameText}>{item.displayName ?? item.username}</Text>
           <Text style={styles.itemSubtitle}>
             {isOnline ? 'Đang hoạt động' : `Hoạt động ${lastSeenLabel}`}
           </Text>
         </View>
-
         <Ionicons name="chevron-forward" size={20} color="#999" />
       </TouchableOpacity>
     );
   }, []);
-
   const renderSectionHeader = useCallback(({ section }: { section: typeof sections[0] }) => (
     <View style={styles.sectionHeader}>
       <Text style={styles.sectionTitle}>{section.title}</Text>
@@ -119,18 +102,15 @@ export default function ContactsScreen() {
       )}
     </View>
   ), []);
-
   const renderItem = useCallback(({ item, section }: { item: any; section: typeof sections[0] }) => {
     if (section.type === 'requests') {
       return renderFriendRequestItem({ item });
     }
     return renderFriendItem({ item });
   }, [renderFriendRequestItem, renderFriendItem]);
-
   const isLoading = contactsLoading || requestsLoading;
   const isError = contactsError && requestsError;
   const isFetching = contactsFetching || requestsFetching;
-
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -140,7 +120,6 @@ export default function ContactsScreen() {
       </SafeAreaView>
     );
   }
-
   if (isError) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -153,7 +132,6 @@ export default function ContactsScreen() {
       </SafeAreaView>
     );
   }
-
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.container}>
@@ -184,7 +162,6 @@ export default function ContactsScreen() {
             </TouchableOpacity>
           </View>
         </View>
-
         {sections.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="people-outline" size={64} color="#ccc" />
@@ -217,7 +194,6 @@ export default function ContactsScreen() {
     </SafeAreaView>
   );
 }
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,

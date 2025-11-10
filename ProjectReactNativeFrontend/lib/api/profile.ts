@@ -1,5 +1,4 @@
 import { apiFetch } from './http-client';
-
 export interface UserProfileDto {
   id: number;
   username: string;
@@ -12,7 +11,6 @@ export interface UserProfileDto {
   lastSeen?: string | null;
   createdAt?: string;
 }
-
 export interface UpdateProfileRequest {
   displayName?: string;
   avatarUrl?: string;
@@ -20,18 +18,15 @@ export interface UpdateProfileRequest {
   dateOfBirth?: string;
   gender?: string;
 }
-
 export async function getUserProfile(userId?: number) {
   if (userId) {
     return apiFetch<UserProfileDto>(`/users/${userId}/profile`);
   }
   return apiFetch<UserProfileDto>('/users/me/profile');
 }
-
 export async function updateProfile(data: UpdateProfileRequest) {
   return apiFetch<UserProfileDto>('/users/me/profile', {
     method: 'PUT',
     body: JSON.stringify(data),
   });
 }
-

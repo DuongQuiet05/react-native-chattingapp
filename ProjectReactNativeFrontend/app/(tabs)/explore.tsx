@@ -10,9 +10,7 @@ import {
 } from 'react-native';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-
 const { width } = Dimensions.get('window');
-
 // Mock data
 const stories = [
   { id: 'add', name: 'Add Story', avatar: '' },
@@ -21,7 +19,6 @@ const stories = [
   { id: '3', name: 'Kenny Am.', avatar: 'https://i.pravatar.cc/150?img=3' },
   { id: '4', name: 'Laila Gils.', avatar: 'https://i.pravatar.cc/150?img=4' },
 ];
-
 const posts = [
   {
     id: '1',
@@ -61,7 +58,6 @@ const posts = [
     commentsCount: 24,
   },
 ];
-
 const communities = [
   {
     id: '1',
@@ -78,12 +74,10 @@ const communities = [
     color: '#95E1D3',
   },
 ];
-
 export default function ExploreScreen() {
   const colorScheme = useColorScheme();
   const [activeTab, setActiveTab] = useState('For You');
   const isDark = colorScheme === 'dark';
-
   return (
     <View style={[styles.container, { backgroundColor: isDark ? '#000' : '#fff' }]}>
       {/* Header */}
@@ -96,7 +90,6 @@ export default function ExploreScreen() {
           </View>
         </View>
       </View>
-
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Stories */}
         <ScrollView
@@ -123,7 +116,6 @@ export default function ExploreScreen() {
             </TouchableOpacity>
           ))}
         </ScrollView>
-
         {/* Tabs */}
         <View style={styles.tabsContainer}>
           {['For You', 'Following', 'My Community'].map((tab) => (
@@ -145,7 +137,6 @@ export default function ExploreScreen() {
             </TouchableOpacity>
           ))}
         </View>
-
         {/* Posts Feed */}
         {posts.map((post) => (
           <View key={post.id} style={[styles.post, { borderBottomColor: isDark ? '#2C2C2E' : '#E5E5EA' }]}>
@@ -160,17 +151,14 @@ export default function ExploreScreen() {
               </View>
               <IconSymbol name="ellipsis" size={20} color={isDark ? '#8E8E93' : '#8E8E93'} />
             </View>
-
             {/* Post Content */}
             <Text style={[styles.postContent, { color: isDark ? '#fff' : '#000' }]}>
               {post.content}
             </Text>
-
             {/* Post Image */}
             {post.image && (
               <Image source={{ uri: post.image }} style={styles.postImage} resizeMode="cover" />
             )}
-
             {/* Post Actions */}
             <View style={styles.postActions}>
               <TouchableOpacity style={styles.actionButton}>
@@ -196,7 +184,6 @@ export default function ExploreScreen() {
             </View>
           </View>
         ))}
-
         {/* Popular Community */}
         <View style={styles.communitySection}>
           <Text style={[styles.communityTitle, { color: isDark ? '#fff' : '#000' }]}>
@@ -230,14 +217,12 @@ export default function ExploreScreen() {
     </View>
   );
 }
-
 function formatNumber(num: number): string {
   if (num >= 1000) {
     return (num / 1000).toFixed(num % 1000 === 0 ? 0 : 1) + 'k';
   }
   return num.toString();
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,

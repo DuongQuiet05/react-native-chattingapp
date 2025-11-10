@@ -1,12 +1,9 @@
 /**
  * Modern theme colors for the app
  */
-
 import { Platform } from 'react-native';
-
 const tintColorLight = '#007AFF';
 const tintColorDark = '#0A84FF';
-
 export const Colors = {
   light: {
     text: '#000000',
@@ -43,7 +40,6 @@ export const Colors = {
     secondary: '#5E5CE6',
   },
 };
-
 export const Fonts = Platform.select({
   ios: {
     /** iOS `UIFontDescriptorSystemDesignDefault` */
@@ -68,7 +64,6 @@ export const Fonts = Platform.select({
     mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
   },
 });
-
 export const Spacing = {
   xs: 4,
   sm: 8,
@@ -77,7 +72,6 @@ export const Spacing = {
   xl: 32,
   xxl: 48,
 };
-
 export const BorderRadius = {
   sm: 8,
   md: 12,
@@ -85,7 +79,6 @@ export const BorderRadius = {
   xl: 20,
   full: 9999,
 };
-
 export const Shadows = {
   sm: {
     shadowColor: '#000',

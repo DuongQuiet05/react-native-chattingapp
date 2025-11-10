@@ -1,5 +1,4 @@
 import { Stack } from 'expo-router';
-
 export default function ChatLayout() {
   return (
     <Stack>
@@ -12,4 +11,3 @@ export default function ChatLayout() {
     </Stack>
   );
 }
-

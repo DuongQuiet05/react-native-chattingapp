@@ -1,5 +1,4 @@
 package org.example.zaloapi.controller;
-
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -20,10 +19,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 import java.util.Map;
-
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
@@ -31,10 +28,8 @@ import java.util.Map;
 @PreAuthorize("hasRole('ADMIN')")
 @Tag(name = "Admin", description = "Admin management APIs")
 public class AdminController {
-
     private final AdminService adminService;
     private final GeminiService geminiService;
-
     // User Management Endpoints
     @GetMapping("/users")
     @Operation(summary = "Get all users", description = "Get paginated list of all users with optional search")
@@ -44,13 +39,11 @@ public class AdminController {
             @RequestParam(required = false) String search) {
         return ResponseEntity.ok(adminService.getAllUsers(page, size, search));
     }
-
     @GetMapping("/users/{userId}")
     @Operation(summary = "Get user by ID", description = "Get user details by ID")
     public ResponseEntity<UserDto> getUserById(@PathVariable Long userId) {
         return ResponseEntity.ok(adminService.getUserById(userId));
     }
-
     @PutMapping("/users/{userId}/status")
     @Operation(summary = "Update user status", description = "Update user status (ONLINE/OFFLINE/AWAY)")
     public ResponseEntity<UserDto> updateUserStatus(
@@ -59,7 +52,6 @@ public class AdminController {
         User.UserStatus userStatus = User.UserStatus.valueOf(status.toUpperCase());
         return ResponseEntity.ok(adminService.updateUserStatus(userId, userStatus));
     }
-
     @PutMapping("/users/{userId}/profile")
     @Operation(summary = "Update user profile", description = "Update user profile information")
     public ResponseEntity<UserProfileDto> updateUserProfile(
@@ -67,7 +59,6 @@ public class AdminController {
             @Valid @RequestBody UpdateProfileRequest request) {
         return ResponseEntity.ok(adminService.updateUserProfile(userId, request));
     }
-
     @PostMapping("/users/{userId}/block")
     @Operation(summary = "Block user", description = "Block a user account")
     public ResponseEntity<Map<String, Object>> blockUser(
@@ -91,7 +82,6 @@ public class AdminController {
             ));
         }
     }
-
     @PostMapping("/users/{userId}/unblock")
     @Operation(summary = "Unblock user", description = "Unblock a user account")
     public ResponseEntity<Map<String, Object>> unblockUser(@PathVariable Long userId) {
@@ -113,7 +103,6 @@ public class AdminController {
             ));
         }
     }
-
     // Post Management Endpoints
     @GetMapping("/posts")
     @Operation(summary = "Get all posts", description = "Get paginated list of all posts with optional search")
@@ -123,13 +112,11 @@ public class AdminController {
             @RequestParam(required = false) String search) {
         return ResponseEntity.ok(adminService.getAllPosts(page, size, search));
     }
-
     @GetMapping("/posts/{postId}")
     @Operation(summary = "Get post by ID", description = "Get post details by ID")
     public ResponseEntity<PostDto> getPostById(@PathVariable Long postId) {
         return ResponseEntity.ok(adminService.getPostById(postId));
     }
-
     @GetMapping("/users/{userId}/posts")
     @Operation(summary = "Get user posts", description = "Get all posts by a specific user")
     public ResponseEntity<Page<PostDto>> getPostsByUser(
@@ -138,7 +125,6 @@ public class AdminController {
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(adminService.getPostsByUser(userId, page, size));
     }
-
     @DeleteMapping("/posts/{postId}")
     @Operation(summary = "Delete post", description = "Delete a post")
     public ResponseEntity<Map<String, Object>> deletePost(@PathVariable Long postId) {
@@ -148,7 +134,6 @@ public class AdminController {
                 "message", "Post deleted successfully"
         ));
     }
-
     @PostMapping("/posts/{postId}/hide")
     @Operation(summary = "Hide post", description = "Hide a post")
     public ResponseEntity<Map<String, Object>> hidePost(@PathVariable Long postId) {
@@ -158,7 +143,6 @@ public class AdminController {
                 "message", "Post hidden successfully"
         ));
     }
-
     @PostMapping("/posts/{postId}/unhide")
     @Operation(summary = "Unhide post", description = "Unhide a post")
     public ResponseEntity<Map<String, Object>> unhidePost(@PathVariable Long postId) {
@@ -168,7 +152,6 @@ public class AdminController {
                 "message", "Post unhidden successfully"
         ));
     }
-
     // Statistics Endpoints
     @GetMapping("/stats")
     @Operation(summary = "Get statistics", description = "Get admin dashboard statistics")
@@ -179,7 +162,6 @@ public class AdminController {
                 "totalConversations", adminService.getTotalConversations()
         ));
     }
-
     // Post Analysis Endpoints
     @PostMapping("/posts/analyze")
     @Operation(summary = "Analyze posts", description = "Analyze 100-200 recent posts using AI (Gemini)")
@@ -189,17 +171,13 @@ public class AdminController {
             Integer maxPosts = (request != null && request.getMaxPosts() != null) 
                     ? request.getMaxPosts() 
                     : 150;
-            
             // Ensure maxPosts is between 100-200
             maxPosts = Math.max(100, Math.min(maxPosts, 200));
-            
             String analysisType = (request != null && request.getAnalysisType() != null) 
                     ? request.getAnalysisType() 
                     : "general";
-
             // Get optimized post data (100-200 most recent posts)
             List<org.example.zaloapi.service.GeminiService.PostContent> posts = adminService.getPostsForAnalysis(maxPosts);
-
             if (posts.isEmpty()) {
                 return ResponseEntity.badRequest().body(
                         PostAnalysisResponse.builder()
@@ -214,14 +192,11 @@ public class AdminController {
                                 .build()
                 );
             }
-
             // Log analysis request
             org.slf4j.LoggerFactory.getLogger(AdminController.class)
                 .info("Starting analysis of {} posts with type: {}", posts.size(), analysisType);
-
             // Analyze using Gemini
             PostAnalysisResponse analysis = geminiService.analyzePosts(posts, analysisType);
-
             return ResponseEntity.ok(analysis);
         } catch (IllegalArgumentException | IllegalStateException e) {
             // Validation errors - return 400
@@ -241,7 +216,6 @@ public class AdminController {
             // Log full error for debugging
             org.slf4j.LoggerFactory.getLogger(AdminController.class)
                 .error("Error analyzing posts", e);
-            
             return ResponseEntity.status(500).body(
                     PostAnalysisResponse.builder()
                             .analysisType(request != null && request.getAnalysisType() != null ? request.getAnalysisType() : "general")
@@ -258,4 +232,3 @@ public class AdminController {
         }
     }
 }
-

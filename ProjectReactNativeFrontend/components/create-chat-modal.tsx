@@ -13,27 +13,21 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
 import { getFriendsList, type FriendProfile } from '@/lib/api/friends';
 import { useCreateConversation } from '@/hooks/api/use-conversations';
-
 interface CreateChatModalProps {
   visible: boolean;
   onClose: () => void;
   onSuccess: (conversationId: number) => void;
 }
-
 type ChatType = 'GROUP';
-
 export function CreateChatModal({ visible, onClose, onSuccess }: CreateChatModalProps) {
   const [groupName, setGroupName] = useState('');
   const [selectedParticipants, setSelectedParticipants] = useState<number[]>([]);
   const [friends, setFriends] = useState<FriendProfile[]>([]);
   const [loadingFriends, setLoadingFriends] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-
   const createConversationMutation = useCreateConversation();
-
   // Load friends list
   useEffect(() => {
     if (visible) {
@@ -47,9 +41,7 @@ export function CreateChatModal({ visible, onClose, onSuccess }: CreateChatModal
             setFriends([]);
           }
         })
-        .catch((error) => {
-          console.warn('Could not load friends:', error);
-          // Set empty array instead of showing alert
+        .catch((error) => {// Set empty array instead of showing alert
           setFriends([]);
           // Only show alert if it's not a 400 error (which might mean no friends)
           if (error?.status !== 400) {
@@ -61,7 +53,6 @@ export function CreateChatModal({ visible, onClose, onSuccess }: CreateChatModal
         });
     }
   }, [visible]);
-
   // Reset form when modal closes
   useEffect(() => {
     if (!visible) {
@@ -70,7 +61,6 @@ export function CreateChatModal({ visible, onClose, onSuccess }: CreateChatModal
       setSearchQuery('');
     }
   }, [visible]);
-
   // Filter friends based on search query
   const filteredFriends = useMemo(() => {
     if (!searchQuery.trim()) {
@@ -83,9 +73,7 @@ export function CreateChatModal({ visible, onClose, onSuccess }: CreateChatModal
         friend.username.toLowerCase().includes(query),
     );
   }, [friends, searchQuery]);
-
   const toggleParticipant = (userId: number) => {
-    // Group chat: có thể chọn nhiều người
     setSelectedParticipants((prev) => {
       if (prev.includes(userId)) {
         return prev.filter((id) => id !== userId);
@@ -93,37 +81,29 @@ export function CreateChatModal({ visible, onClose, onSuccess }: CreateChatModal
       return [...prev, userId];
     });
   };
-
   const handleCreate = async () => {
     if (!groupName.trim()) {
       Alert.alert('Lỗi', 'Vui lòng nhập tên nhóm');
       return;
     }
-    // Yêu cầu tối thiểu 2 người được chọn (vì người tạo đã được tính, tổng cộng sẽ là 3 người)
     if (selectedParticipants.length < 2) {
       Alert.alert('Lỗi', 'Vui lòng chọn ít nhất 2 thành viên (tổng cộng tối thiểu 3 người bao gồm bạn)');
       return;
     }
-
     try {
       const payload: CreateConversationRequest = {
         type: 'GROUP',
         participantIds: selectedParticipants,
         groupName: groupName.trim(),
       };
-
       const response = await createConversationMutation.mutateAsync(payload);
       onSuccess(response.id);
       onClose();
-    } catch (error) {
-      console.error('Error creating conversation:', error);
-      Alert.alert('Lỗi', 'Không thể tạo cuộc trò chuyện. Vui lòng thử lại.');
+    } catch (error) {Alert.alert('Lỗi', 'Không thể tạo cuộc trò chuyện. Vui lòng thử lại.');
     }
   };
-
   const renderFriendItem = ({ item }: { item: FriendProfile }) => {
     const isSelected = selectedParticipants.includes(item.id);
-
     return (
       <TouchableOpacity
         style={[styles.friendItem, isSelected && styles.friendItemSelected]}
@@ -145,7 +125,6 @@ export function CreateChatModal({ visible, onClose, onSuccess }: CreateChatModal
       </TouchableOpacity>
     );
   };
-
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -157,7 +136,6 @@ export function CreateChatModal({ visible, onClose, onSuccess }: CreateChatModal
           <Text style={styles.headerTitle}>Tạo cuộc trò chuyện</Text>
           <View style={styles.placeholder} />
         </View>
-
         {/* Group Name Input */}
         <View style={styles.groupNameContainer}>
           <TextInput
@@ -169,7 +147,6 @@ export function CreateChatModal({ visible, onClose, onSuccess }: CreateChatModal
             maxLength={50}
           />
         </View>
-
         {/* Search */}
         <View style={styles.searchContainer}>
           <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
@@ -181,7 +158,6 @@ export function CreateChatModal({ visible, onClose, onSuccess }: CreateChatModal
             onChangeText={setSearchQuery}
           />
         </View>
-
         {/* Friends List */}
         {loadingFriends ? (
           <View style={styles.loadingContainer}>
@@ -205,7 +181,6 @@ export function CreateChatModal({ visible, onClose, onSuccess }: CreateChatModal
             }
           />
         )}
-
         {/* Selected Count & Create Button */}
         {selectedParticipants.length > 0 && (
           <View style={styles.footer}>
@@ -234,7 +209,6 @@ export function CreateChatModal({ visible, onClose, onSuccess }: CreateChatModal
     </Modal>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -401,4 +375,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-

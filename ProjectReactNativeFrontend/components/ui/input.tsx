@@ -2,17 +2,14 @@ import React from 'react';
 import { StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/theme';
-
 interface InputProps extends TextInputProps {
   label?: string;
   error?: string;
   containerStyle?: object;
 }
-
 export function Input({ label, error, containerStyle, style, ...props }: InputProps) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-
   return (
     <View style={[styles.container, containerStyle]}>
       {label && <Text style={[styles.label, { color: colors.text }]}>{label}</Text>}
@@ -33,7 +30,6 @@ export function Input({ label, error, containerStyle, style, ...props }: InputPr
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     marginBottom: 16,
@@ -55,4 +51,3 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 });
-

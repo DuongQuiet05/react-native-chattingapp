@@ -1,10 +1,7 @@
 import type { UserProfile } from './auth';
 import { apiFetch } from './http-client';
 import type { MessageDto } from './messages';
-
 export type ConversationType = 'PRIVATE' | 'GROUP';
-
-// Response từ backend
 interface ConversationResponse {
   id: number;
   type: ConversationType;
@@ -31,8 +28,6 @@ interface ConversationResponse {
     sentAt: string;
   } | null;
 }
-
-// Format đã xử lý để dùng trong UI
 export interface ConversationSummary {
   id: number;
   type: ConversationType;
@@ -43,34 +38,27 @@ export interface ConversationSummary {
   unreadCount?: number;
   participantStatus?: 'ONLINE' | 'OFFLINE' | 'AWAY'; // Status của participant (cho PRIVATE conversation)
 }
-
 export interface ConversationParticipant {
   id: number;
   role: 'ADMIN' | 'MEMBER';
   user: UserProfile;
   joinedAt: string;
 }
-
 export interface ConversationDetail extends ConversationSummary {
   participants: ConversationParticipant[];
   messages?: MessageDto[];
 }
-
-// Helper function để transform response từ backend
 function transformConversation(
   conv: ConversationResponse,
   currentUserId?: number,
 ): ConversationSummary {
   let title = '';
   let avatarUrl: string | undefined;
-
   let participantStatus: 'ONLINE' | 'OFFLINE' | 'AWAY' | undefined;
-
   if (conv.type === 'GROUP') {
     title = conv.groupName || 'Nhóm không tên';
     avatarUrl = conv.groupAvatarUrl || undefined;
   } else {
-    // PRIVATE conversation: lấy thông tin của người còn lại
     const otherUser = conv.participants.find((p) => p.id !== currentUserId);
     if (otherUser) {
       title = otherUser.displayName;
@@ -80,7 +68,6 @@ function transformConversation(
       title = 'Người dùng';
     }
   }
-
   return {
     id: conv.id,
     type: conv.type,
@@ -92,16 +79,13 @@ function transformConversation(
     participantStatus,
   };
 }
-
 export async function fetchConversations(currentUserId?: number) {
   const responses = await apiFetch<ConversationResponse[]>('/conversations');
   return responses.map((conv) => transformConversation(conv, currentUserId));
 }
-
 export async function fetchConversationDetail(conversationId: number, currentUserId?: number) {
   const response = await apiFetch<ConversationResponse>(`/conversations/${conversationId}`);
   const summary = transformConversation(response, currentUserId);
-  
   // Convert participants
   const participants: ConversationParticipant[] = response.participants.map((p) => ({
     id: p.id,
@@ -115,19 +99,16 @@ export async function fetchConversationDetail(conversationId: number, currentUse
     },
     joinedAt: response.createdAt, // Tạm dùng createdAt
   }));
-
   return {
     ...summary,
     participants,
   };
 }
-
 export interface CreateConversationRequest {
   type: 'PRIVATE' | 'GROUP';
   groupName?: string;
   participantIds: number[];
 }
-
 export interface CreateConversationResponse {
   id: number;
   type: ConversationType;
@@ -143,7 +124,6 @@ export interface CreateConversationResponse {
     status?: string;
   }>;
 }
-
 /**
  * Tạo conversation mới (private hoặc group)
  */
@@ -153,7 +133,6 @@ export async function createConversation(payload: CreateConversationRequest) {
     body: JSON.stringify(payload),
   });
 }
-
 /**
  * Tạo hoặc lấy conversation private với 1 người dùng
  */

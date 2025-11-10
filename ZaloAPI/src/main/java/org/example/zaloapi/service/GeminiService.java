@@ -1,5 +1,4 @@
 package org.example.zaloapi.service;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.zaloapi.config.GeminiConfig;
@@ -8,36 +7,28 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-
 import java.util.*;
-
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class GeminiService {
-
     private final GeminiConfig geminiConfig;
     private final RestTemplate restTemplate = new RestTemplate();
     private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s";
-
     public PostAnalysisResponse analyzePosts(List<PostContent> posts, String analysisType) {
         try {
             if (posts == null || posts.isEmpty()) {
                 throw new IllegalArgumentException("Posts list is empty");
             }
-
             // Validate API key
             if (geminiConfig.getApiKey() == null || geminiConfig.getApiKey().isEmpty() || 
                 geminiConfig.getApiKey().equals("your-gemini-api-key-here")) {
                 throw new IllegalStateException("Gemini API key is not configured. Please set gemini.api.key in application.properties");
             }
-
             log.info("Analyzing {} posts with type: {}", posts.size(), analysisType);
-
             // Build prompt with optimized data
             String prompt = buildAnalysisPrompt(posts, analysisType);
             log.debug("Prompt length: {} characters", prompt.length());
-
             // Build request body
             Map<String, Object> requestBody = new HashMap<>();
             List<Map<String, Object>> contents = new ArrayList<>();
@@ -49,34 +40,27 @@ public class GeminiService {
             content.put("parts", parts);
             contents.add(content);
             requestBody.put("contents", contents);
-
             // Set headers
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
-
             // Try with primary model first, then fallback
             String[] modelsToTry = {
                 geminiConfig.getModelName(),
                 geminiConfig.getFallbackModelName()
             };
-
             ParameterizedTypeReference<Map<String, Object>> responseType = 
                 new ParameterizedTypeReference<Map<String, Object>>() {};
-
             ResponseEntity<Map<String, Object>> response = null;
             String lastError = null;
             String usedModel = null;
-
             // Try each model with retries
             for (String modelName : modelsToTry) {
                 if (modelName == null || modelName.isEmpty()) continue;
-                
                 for (int attempt = 0; attempt < geminiConfig.getMaxRetries(); attempt++) {
                     try {
                         // Build URL with current model
                         String url = String.format(GEMINI_API_URL, modelName, geminiConfig.getApiKey());
-                        
                         if (attempt > 0) {
                             log.info("Retry attempt {} for model {}: {}", attempt + 1, modelName, url.replace(geminiConfig.getApiKey(), "***"));
                             // Wait before retry
@@ -84,7 +68,6 @@ public class GeminiService {
                         } else {
                             log.debug("Calling Gemini API with model {}: {}", modelName, url.replace(geminiConfig.getApiKey(), "***"));
                         }
-
                         // Call Gemini API
                         response = restTemplate.exchange(
                             url, 
@@ -92,7 +75,6 @@ public class GeminiService {
                             request, 
                             responseType
                         );
-
                         // Check response status
                         if (response.getStatusCode().is2xxSuccessful()) {
                             usedModel = modelName;
@@ -101,7 +83,6 @@ public class GeminiService {
                             log.warn("Gemini API returned non-2xx status: {} for model {}", response.getStatusCode(), modelName);
                             lastError = "Gemini API returned status: " + response.getStatusCode();
                         }
-
                     } catch (org.springframework.web.client.HttpServerErrorException e) {
                         // 503, 500, etc. - retryable errors
                         if (e.getStatusCode().value() == 503 || e.getStatusCode().value() == 500) {
@@ -131,32 +112,26 @@ public class GeminiService {
                         }
                     }
                 }
-
                 // If we got a successful response, break out of model loop
                 if (response != null && response.getStatusCode().is2xxSuccessful()) {
                     break;
                 }
             }
-
             // Check if we got a successful response
             if (response == null || !response.getStatusCode().is2xxSuccessful()) {
                 throw new RuntimeException("Failed to analyze posts after trying " + 
                     geminiConfig.getMaxRetries() + " retries with " + modelsToTry.length + " models. " +
                     "Last error: " + lastError + ". The models may be overloaded. Please try again later.");
             }
-
             // Extract response text
             String responseText = extractTextFromResponse(response.getBody());
             if (responseText == null || responseText.isEmpty() || responseText.startsWith("No")) {
                 log.error("Failed to extract text from Gemini response. Response body: {}", response.getBody());
                 throw new RuntimeException("Failed to extract analysis from Gemini API response");
             }
-
             log.info("Successfully received response from Gemini API using model {} (length: {})", usedModel, responseText.length());
-
             // Parse response
             return parseAnalysisResponse(responseText, analysisType, posts.size());
-
         } catch (IllegalArgumentException | IllegalStateException e) {
             log.error("Validation error: {}", e.getMessage());
             throw e;
@@ -168,7 +143,6 @@ public class GeminiService {
             throw new RuntimeException("Failed to analyze posts: " + e.getMessage(), e);
         }
     }
-
     @SuppressWarnings("unchecked")
     private String extractTextFromResponse(Map<String, Object> responseBody) {
         try {
@@ -176,9 +150,7 @@ public class GeminiService {
                 log.error("Response body is null");
                 throw new RuntimeException("No response from Gemini API");
             }
-
             log.debug("Response body keys: {}", responseBody.keySet());
-
             // Check for error first
             Object errorObj = responseBody.get("error");
             if (errorObj != null) {
@@ -190,28 +162,23 @@ public class GeminiService {
                     throw new RuntimeException("Gemini API error [" + errorCode + "]: " + errorMessage);
                 }
             }
-
             // Navigate through response structure
             Object candidatesObj = responseBody.get("candidates");
             if (candidatesObj == null) {
                 log.error("No 'candidates' field in response. Response: {}", responseBody);
                 throw new RuntimeException("Invalid response format from Gemini API: missing 'candidates'");
             }
-            
             if (!(candidatesObj instanceof List)) {
                 log.error("'candidates' is not a List. Type: {}, Value: {}", candidatesObj.getClass(), candidatesObj);
                 throw new RuntimeException("Invalid response format from Gemini API: 'candidates' is not a list");
             }
-            
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> candidates = (List<Map<String, Object>>) candidatesObj;
             if (candidates.isEmpty()) {
                 log.error("Candidates list is empty. Response: {}", responseBody);
                 throw new RuntimeException("No candidates in Gemini API response");
             }
-
             Map<String, Object> candidate = candidates.get(0);
-            
             // Check for finishReason (might indicate blocking)
             Object finishReasonObj = candidate.get("finishReason");
             if (finishReasonObj != null) {
@@ -221,55 +188,45 @@ public class GeminiService {
                     throw new RuntimeException("Content was blocked by Gemini API (finishReason: " + finishReason + ")");
                 }
             }
-            
             Object contentObj = candidate.get("content");
             if (contentObj == null) {
                 log.error("No 'content' in candidate. Candidate: {}", candidate);
                 throw new RuntimeException("Invalid response format: missing 'content' in candidate");
             }
-            
             if (!(contentObj instanceof Map)) {
                 log.error("'content' is not a Map. Type: {}, Value: {}", contentObj.getClass(), contentObj);
                 throw new RuntimeException("Invalid response format: 'content' is not a map");
             }
-            
             @SuppressWarnings("unchecked")
             Map<String, Object> content = (Map<String, Object>) contentObj;
-
             Object partsObj = content.get("parts");
             if (partsObj == null) {
                 log.error("No 'parts' in content. Content: {}", content);
                 throw new RuntimeException("Invalid response format: missing 'parts' in content");
             }
-            
             if (!(partsObj instanceof List)) {
                 log.error("'parts' is not a List. Type: {}, Value: {}", partsObj.getClass(), partsObj);
                 throw new RuntimeException("Invalid response format: 'parts' is not a list");
             }
-            
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> parts = (List<Map<String, Object>>) partsObj;
             if (parts.isEmpty()) {
                 log.error("Parts list is empty. Content: {}", content);
                 throw new RuntimeException("No parts in Gemini API response content");
             }
-
             Map<String, Object> part = parts.get(0);
             Object textObj = part.get("text");
             if (textObj == null) {
                 log.error("No 'text' in part. Part: {}", part);
                 throw new RuntimeException("Invalid response format: missing 'text' in part");
             }
-            
             String text = textObj.toString();
             if (text.isEmpty()) {
                 log.warn("Text is empty in response");
                 throw new RuntimeException("Empty text in Gemini API response");
             }
-            
             log.debug("Successfully extracted text (length: {})", text.length());
             return text;
-
         } catch (RuntimeException e) {
             // Re-throw runtime exceptions
             throw e;
@@ -279,13 +236,10 @@ public class GeminiService {
             throw new RuntimeException("Failed to parse Gemini API response: " + e.getMessage(), e);
         }
     }
-
     private String buildAnalysisPrompt(List<PostContent> posts, String analysisType) {
         StringBuilder prompt = new StringBuilder();
-        
         prompt.append("Bạn là một chuyên gia phân tích dữ liệu mạng xã hội chuyên nghiệp. ");
         prompt.append("Hãy phân tích ").append(posts.size()).append(" bài đăng gần đây và cung cấp báo cáo ngắn gọn, dễ đọc cho quản trị viên.\n\n");
-        
         // Add posts data (optimized - only essential fields)
         prompt.append("=== DỮ LIỆU BÀI ĐĂNG ===\n");
         int displayCount = Math.min(posts.size(), 50); // Only show first 50 in detail to save tokens
@@ -301,18 +255,15 @@ public class GeminiService {
         if (posts.size() > displayCount) {
             prompt.append(String.format("\n... và %d bài đăng khác\n", posts.size() - displayCount));
         }
-        
         // Calculate some basic stats for context
         long totalReactions = posts.stream().mapToLong(PostContent::getReactionCount).sum();
         long totalComments = posts.stream().mapToLong(PostContent::getCommentCount).sum();
         double avgReactions = posts.isEmpty() ? 0 : (double) totalReactions / posts.size();
         double avgComments = posts.isEmpty() ? 0 : (double) totalComments / posts.size();
-        
         prompt.append(String.format("\n📊 THỐNG KÊ TỔNG QUAN:\n"));
         prompt.append(String.format("- Tổng số bài đăng: %d\n", posts.size()));
         prompt.append(String.format("- Tổng lượt thích: %d (TB: %.1f/bài)\n", totalReactions, avgReactions));
         prompt.append(String.format("- Tổng bình luận: %d (TB: %.1f/bài)\n", totalComments, avgComments));
-        
         // Add analysis instructions based on type
         prompt.append("\n=== YÊU CẦU PHÂN TÍCH ===\n");
         switch (analysisType != null ? analysisType.toLowerCase() : "general") {
@@ -346,7 +297,6 @@ public class GeminiService {
                 prompt.append("5. 3-5 phát hiện quan trọng nhất\n");
                 prompt.append("6. Khuyến nghị hành động (nếu cần)\n");
         }
-        
         prompt.append("\n=== ĐỊNH DẠNG KẾT QUẢ ===\n");
         prompt.append("Vui lòng trả về kết quả dưới dạng JSON với cấu trúc sau (ngắn gọn, dễ đọc):\n\n");
         prompt.append("{\n");
@@ -379,10 +329,8 @@ public class GeminiService {
         prompt.append("- Tránh thuật ngữ kỹ thuật phức tạp\n");
         prompt.append("- Tập trung vào insights có giá trị cho quản trị viên\n");
         prompt.append("- Mỗi keyFinding không quá 1 câu\n");
-        
         return prompt.toString();
     }
-
     private String truncateContent(String content) {
         if (content == null) return "";
         int maxLength = geminiConfig.getMaxContentLength();
@@ -391,18 +339,15 @@ public class GeminiService {
         }
         return content;
     }
-
     private PostAnalysisResponse parseAnalysisResponse(String response, String analysisType, int totalPosts) {
         try {
             Map<String, Object> insights = new HashMap<>();
             List<String> keyFindings = new ArrayList<>();
             List<String> recommendations = new ArrayList<>();
             String summary = "";
-
             // Try to parse as JSON first
             try {
                 String trimmedResponse = response.trim();
-                
                 // Remove markdown code blocks if present
                 if (trimmedResponse.contains("```json")) {
                     int jsonStart = trimmedResponse.indexOf("```json") + 7;
@@ -417,7 +362,6 @@ public class GeminiService {
                         trimmedResponse = trimmedResponse.substring(jsonStart, jsonEnd).trim();
                     }
                 }
-                
                 if (trimmedResponse.startsWith("{") && trimmedResponse.contains("\"summary\"")) {
                     // Extract summary
                     int summaryStart = trimmedResponse.indexOf("\"summary\"");
@@ -429,7 +373,6 @@ public class GeminiService {
                             summary = unescapeJsonString(summary);
                         }
                     }
-
                     // Extract keyFindings array
                     int findingsStart = trimmedResponse.indexOf("\"keyFindings\"");
                     if (findingsStart >= 0) {
@@ -440,7 +383,6 @@ public class GeminiService {
                             extractJsonArray(findingsStr, keyFindings);
                         }
                     }
-
                     // Extract recommendations array
                     int recStart = trimmedResponse.indexOf("\"recommendations\"");
                     if (recStart >= 0) {
@@ -451,7 +393,6 @@ public class GeminiService {
                             extractJsonArray(recStr, recommendations);
                         }
                     }
-
                     // Extract insights object
                     int insightsStart = trimmedResponse.indexOf("\"insights\"");
                     if (insightsStart >= 0) {
@@ -483,7 +424,6 @@ public class GeminiService {
             } catch (Exception e) {
                 log.debug("Failed to parse JSON structure, will use full response as summary", e);
             }
-
             // If summary is still empty or parsing failed, use the full response
             if (summary.isEmpty()) {
                 // Try to extract summary from text format
@@ -498,7 +438,6 @@ public class GeminiService {
                         break;
                     }
                 }
-                
                 // If still empty, use first meaningful paragraph
                 if (summary.isEmpty()) {
                     for (String line : lines) {
@@ -509,7 +448,6 @@ public class GeminiService {
                         }
                     }
                 }
-                
                 // Last resort: use first 500 chars
                 if (summary.isEmpty()) {
                     summary = response.length() > 500 
@@ -517,7 +455,6 @@ public class GeminiService {
                         : response;
                 }
             }
-
             // If no key findings extracted, try to extract from text
             if (keyFindings.isEmpty() && response.length() > 100) {
                 String[] lines = response.split("\n");
@@ -533,7 +470,6 @@ public class GeminiService {
                     }
                 }
             }
-
             return PostAnalysisResponse.builder()
                     .analysisType(analysisType != null ? analysisType : "general")
                     .summary(summary)
@@ -544,7 +480,6 @@ public class GeminiService {
                     .analyzedAt(java.time.LocalDateTime.now())
                     .rawAnalysis(response)
                     .build();
-
         } catch (Exception e) {
             log.error("Failed to parse analysis response", e);
             // Return response with raw text as fallback
@@ -560,7 +495,6 @@ public class GeminiService {
                     .build();
         }
     }
-
     // Helper methods for JSON parsing
     private int findMatchingQuote(String str, int start) {
         for (int i = start; i < str.length(); i++) {
@@ -570,7 +504,6 @@ public class GeminiService {
         }
         return -1;
     }
-
     private int findMatchingBracket(String str, int start, char open, char close) {
         int depth = 1;
         for (int i = start + 1; i < str.length(); i++) {
@@ -583,7 +516,6 @@ public class GeminiService {
         }
         return -1;
     }
-
     private void extractJsonArray(String arrayStr, List<String> result) {
         if (arrayStr == null || arrayStr.trim().isEmpty()) return;
         String[] items = arrayStr.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
@@ -598,20 +530,17 @@ public class GeminiService {
             }
         }
     }
-
     private String unescapeJsonString(String str) {
         return str.replace("\\n", "\n")
                   .replace("\\\"", "\"")
                   .replace("\\t", "\t")
                   .replace("\\\\", "\\");
     }
-
     private void extractSentimentData(String insightsStr, Map<String, Object> sentiment) {
         extractNumber(insightsStr, "\"positive\"", sentiment, "positive");
         extractNumber(insightsStr, "\"negative\"", sentiment, "negative");
         extractNumber(insightsStr, "\"neutral\"", sentiment, "neutral");
     }
-
     private void extractTopicsData(String insightsStr, List<Map<String, Object>> topics) {
         // Simple extraction - look for topic objects
         String[] topicBlocks = insightsStr.split("\\{");
@@ -627,13 +556,11 @@ public class GeminiService {
             }
         }
     }
-
     private void extractEngagementData(String insightsStr, Map<String, Object> engagement) {
         extractNumber(insightsStr, "\"averageReactions\"", engagement, "averageReactions");
         extractNumber(insightsStr, "\"averageComments\"", engagement, "averageComments");
         extractString(insightsStr, "\"engagementRate\"", engagement, "engagementRate");
     }
-
     private void extractString(String str, String key, Map<String, Object> map, String mapKey) {
         int keyPos = str.indexOf(key);
         if (keyPos >= 0) {
@@ -645,7 +572,6 @@ public class GeminiService {
             }
         }
     }
-
     private void extractNumber(String str, String key, Map<String, Object> map, String mapKey) {
         int keyPos = str.indexOf(key);
         if (keyPos >= 0) {
@@ -672,7 +598,6 @@ public class GeminiService {
             }
         }
     }
-
     // Inner class for optimized post data
     public static class PostContent {
         private String content;
@@ -680,7 +605,6 @@ public class GeminiService {
         private String createdAt;
         private long reactionCount;
         private long commentCount;
-
         public PostContent(String content, String authorName, String createdAt, long reactionCount, long commentCount) {
             this.content = content;
             this.authorName = authorName;
@@ -688,7 +612,6 @@ public class GeminiService {
             this.reactionCount = reactionCount;
             this.commentCount = commentCount;
         }
-
         // Getters
         public String getContent() { return content; }
         public String getAuthorName() { return authorName; }
@@ -697,4 +620,3 @@ public class GeminiService {
         public long getCommentCount() { return commentCount; }
     }
 }
-

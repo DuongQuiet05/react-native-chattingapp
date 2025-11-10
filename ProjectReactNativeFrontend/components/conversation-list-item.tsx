@@ -3,30 +3,22 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { Image } from 'expo-image';
 import { memo } from 'react';
 import { StyleSheet, TouchableOpacity, View, Text } from 'react-native';
-
 import type { ConversationSummary } from '@/lib/api/conversations';
-
 dayjs.extend(relativeTime);
-
 interface Props {
   conversation: ConversationSummary;
   onPress: (conversationId: number) => void;
 }
-
 function ConversationListItemComponent({ conversation, onPress }: Props) {
   // Format time as HH:mm
   const timeDisplay = conversation.lastMessageAt
     ? dayjs(conversation.lastMessageAt).format('HH:mm')
     : undefined;
-
-  // Đảm bảo title luôn có giá trị
   const title = conversation.title || 'Cuộc trò chuyện';
   const firstLetter = title.charAt(0).toUpperCase();
-
   // Determine what to show: unread badge or status
   const hasUnread = conversation.unreadCount && conversation.unreadCount > 0;
   const showStatus = !hasUnread && conversation.type === 'PRIVATE' && conversation.participantStatus;
-
   return (
     <TouchableOpacity onPress={() => onPress(conversation.id)} activeOpacity={0.7}>
       <View style={styles.container}>
@@ -57,7 +49,12 @@ function ConversationListItemComponent({ conversation, onPress }: Props) {
           </View>
           <View style={styles.previewRow}>
             {conversation.lastMessagePreview ? (
-              <Text numberOfLines={1} style={styles.preview}>
+              <Text 
+                numberOfLines={1} 
+                style={[
+                  styles.preview,
+                  hasUnread && styles.previewUnread
+                ]}>
                 {String(conversation.lastMessagePreview)}
               </Text>
             ) : (
@@ -86,9 +83,7 @@ function ConversationListItemComponent({ conversation, onPress }: Props) {
     </TouchableOpacity>
   );
 }
-
 export const ConversationListItem = memo(ConversationListItemComponent);
-
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
@@ -127,6 +122,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: '600',
+    color: '#000',
   },
   rightSection: {
     flexDirection: 'row',
@@ -146,6 +142,10 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: '#666',
+  },
+  previewUnread: {
+    fontWeight: '600',
+    color: '#000',
   },
   previewPlaceholder: {
     flex: 1,

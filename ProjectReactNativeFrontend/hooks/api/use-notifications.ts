@@ -8,10 +8,8 @@ import {
   markNotificationAsRead,
 } from '@/lib/api/notifications';
 import { useAuth } from '@/contexts/auth-context';
-
 export function useNotifications(page = 0, size = 20) {
   const { status } = useAuth();
-  
   return useQuery({
     queryKey: ['notifications', page, size],
     queryFn: () => getNotifications(page, size),
@@ -20,10 +18,8 @@ export function useNotifications(page = 0, size = 20) {
     staleTime: 10000, // Consider data stale after 10 seconds
   });
 }
-
 export function useUnreadNotifications() {
   const { status } = useAuth();
-  
   return useQuery({
     queryKey: ['unreadNotifications'],
     queryFn: () => getUnreadNotifications(),
@@ -31,10 +27,8 @@ export function useUnreadNotifications() {
     refetchInterval: status === 'authenticated' ? 30000 : false, // Refetch every 30 seconds
   });
 }
-
 export function useUnreadCount() {
   const { status } = useAuth();
-  
   return useQuery({
     queryKey: ['unreadCount'],
     queryFn: () => getUnreadCount(),
@@ -42,10 +36,8 @@ export function useUnreadCount() {
     refetchInterval: status === 'authenticated' ? 30000 : false, // Refetch every 30 seconds
   });
 }
-
 export function useUnreadMessageNotificationCount() {
   const { status } = useAuth();
-  
   return useQuery({
     queryKey: ['unreadMessageNotificationCount'],
     queryFn: () => getUnreadMessageNotificationCount(),
@@ -53,10 +45,8 @@ export function useUnreadMessageNotificationCount() {
     refetchInterval: status === 'authenticated' ? 30000 : false, // Refetch every 30 seconds
   });
 }
-
 export function useMarkNotificationAsRead() {
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: (notificationId: number) => markNotificationAsRead(notificationId),
     onSuccess: () => {
@@ -66,10 +56,8 @@ export function useMarkNotificationAsRead() {
     },
   });
 }
-
 export function useMarkAllNotificationsAsRead() {
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: () => markAllNotificationsAsRead(),
     onSuccess: () => {
@@ -79,4 +67,3 @@ export function useMarkAllNotificationsAsRead() {
     },
   });
 }
-

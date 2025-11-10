@@ -1,10 +1,8 @@
 package org.example.zaloapi.dto;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 @Data
 @Builder
 @NoArgsConstructor
@@ -15,4 +13,3 @@ public class RegisterDeviceRequest {
     private String deviceType; // ANDROID, IOS, WEB
     private String appVersion;
 }
-

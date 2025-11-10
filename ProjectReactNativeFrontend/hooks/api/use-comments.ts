@@ -6,7 +6,6 @@ import {
   getPostCommentsPaginated,
   type CreateCommentRequest,
 } from '@/lib/api/comments';
-
 export function usePostComments(postId: number) {
   return useQuery({
     queryKey: ['postComments', postId],
@@ -14,7 +13,6 @@ export function usePostComments(postId: number) {
     enabled: !!postId,
   });
 }
-
 export function usePostCommentsPaginated(postId: number, page = 0, size = 20) {
   return useQuery({
     queryKey: ['postCommentsPaginated', postId, page, size],
@@ -22,10 +20,8 @@ export function usePostCommentsPaginated(postId: number, page = 0, size = 20) {
     enabled: !!postId,
   });
 }
-
 export function useCreateComment() {
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: (data: CreateCommentRequest) => createComment(data),
     onSuccess: (_, variables) => {
@@ -36,10 +32,8 @@ export function useCreateComment() {
     },
   });
 }
-
 export function useDeleteComment() {
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: (commentId: number) => deleteComment(commentId),
     onSuccess: () => {
@@ -50,4 +44,3 @@ export function useDeleteComment() {
     },
   });
 }
-

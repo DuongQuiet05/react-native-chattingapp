@@ -11,57 +11,44 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getPrivacySettings, updatePrivacySettings, type PrivacySettings } from '@/lib/api/friends';
-
 export default function PrivacySettingsScreen() {
   const colorScheme = useColorScheme();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<PrivacySettings | null>(null);
-
   useEffect(() => {
     loadSettings();
   }, []);
-
   const loadSettings = async () => {
     setLoading(true);
     try {
       const data = await getPrivacySettings();
       setSettings(data);
-    } catch (error) {
-      console.error('Load privacy settings error:', error);
-      Alert.alert('Lỗi', 'Không thể tải cài đặt quyền riêng tư');
+    } catch (error) {Alert.alert('Lỗi', 'Không thể tải cài đặt quyền riêng tư');
     } finally {
       setLoading(false);
     }
   };
-
   const handleToggle = async (key: keyof Omit<PrivacySettings, 'userId'>, value: boolean) => {
     if (!settings) return;
-
     const previousSettings = { ...settings };
-    
     // Optimistic update
     setSettings({ ...settings, [key]: value });
     setSaving(true);
-
     try {
       const updated = await updatePrivacySettings({ [key]: value });
       setSettings(updated);
-    } catch (error) {
-      console.error('Update privacy settings error:', error);
-      // Revert on error
+    } catch (error) {// Revert on error
       setSettings(previousSettings);
       Alert.alert('Lỗi', 'Không thể cập nhật cài đặt. Vui lòng thử lại.');
     } finally {
       setSaving(false);
     }
   };
-
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -72,7 +59,6 @@ export default function PrivacySettingsScreen() {
       </SafeAreaView>
     );
   }
-
   if (!settings) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -86,7 +72,6 @@ export default function PrivacySettingsScreen() {
       </SafeAreaView>
     );
   }
-
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ThemedView style={styles.container}>
@@ -100,12 +85,10 @@ export default function PrivacySettingsScreen() {
           <ThemedText type="title">Quyền riêng tư</ThemedText>
           <View style={styles.placeholder} />
         </View>
-
         <ScrollView style={styles.content}>
           {/* Section 1: Tìm kiếm */}
           <View style={styles.section}>
             <ThemedText style={styles.sectionTitle}>Tìm kiếm</ThemedText>
-            
             <View style={styles.settingItem}>
               <View style={styles.settingInfo}>
                 <ThemedText style={styles.settingLabel}>
@@ -124,11 +107,9 @@ export default function PrivacySettingsScreen() {
               />
             </View>
           </View>
-
           {/* Section 2: Kết bạn */}
           <View style={styles.section}>
             <ThemedText style={styles.sectionTitle}>Kết bạn</ThemedText>
-            
             <View style={styles.settingItem}>
               <View style={styles.settingInfo}>
                 <ThemedText style={styles.settingLabel}>
@@ -147,11 +128,9 @@ export default function PrivacySettingsScreen() {
               />
             </View>
           </View>
-
           {/* Section 3: Thông tin cá nhân */}
           <View style={styles.section}>
             <ThemedText style={styles.sectionTitle}>Thông tin cá nhân</ThemedText>
-            
             <View style={styles.settingItem}>
               <View style={styles.settingInfo}>
                 <ThemedText style={styles.settingLabel}>
@@ -170,7 +149,6 @@ export default function PrivacySettingsScreen() {
               />
             </View>
           </View>
-
           {/* Info Box */}
           <View style={styles.infoBox}>
             <Ionicons name="information-circle" size={20} color="#0a84ff" />
@@ -184,7 +162,6 @@ export default function PrivacySettingsScreen() {
     </SafeAreaView>
   );
 }
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
