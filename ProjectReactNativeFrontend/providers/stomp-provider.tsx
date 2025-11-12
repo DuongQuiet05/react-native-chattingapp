@@ -47,7 +47,7 @@ export function StompProvider({ children }: { children: ReactNode }) {
         try {
           currentClient.deactivate();
         } catch (error) {
-          console.error('❌ [STOMP] Error deactivating:', error);
+          // Error deactivating
         }
       }
       // DO NOT call setConnected(false) here - it will trigger re-render and cause loop
@@ -71,8 +71,6 @@ export function StompProvider({ children }: { children: ReactNode }) {
       wsUrl = wsUrl.replace(/\/ws$/, '') + '/ws';
     }
     
-    console.log('🔌 [STOMP] Connecting to:', wsUrl);
-    
     const client = new Client({
       // Dùng WebSocket thuần, KHÔNG dùng SockJS để tránh CORS
       brokerURL: wsUrl,
@@ -84,20 +82,15 @@ export function StompProvider({ children }: { children: ReactNode }) {
       heartbeatIncoming: 10000,
       heartbeatOutgoing: 10000,
       debug: (frame) => {
-        if (__DEV__) {
-          // eslint-disable-next-line no-console
-          console.log(`[STOMP] ${frame}`);
-        }
+        // Debug logging disabled
       },
       // Thêm onWebSocketError để debug
       onWebSocketError: (event) => {
-        console.error('❌ [STOMP] WebSocket error:', event);
+        // WebSocket error
       },
       // Thêm onDebug để xem chi tiết
       onDebug: (msg) => {
-        if (__DEV__) {
-          console.log(`[STOMP DEBUG] ${msg}`);
-        }
+        // Debug logging disabled
       },
     });
 
@@ -121,29 +114,24 @@ export function StompProvider({ children }: { children: ReactNode }) {
 
     client.onConnect = (frame) => {
       if (isActiveRef.current && clientRef.current === client) {
-        console.log('✅ [STOMP] Connected to WebSocket', frame);
         safeSetConnected(true);
       }
     };
 
     client.onDisconnect = () => {
       if (isActiveRef.current && clientRef.current === client) {
-        console.log('❌ [STOMP] Disconnected from WebSocket');
         safeSetConnected(false);
       }
     };
 
     client.onStompError = (frame) => {
       if (isActiveRef.current && clientRef.current === client) {
-        console.error('⚠️ [STOMP] Error:', frame.headers['message'], frame.body);
-        console.warn('STOMP error headers:', frame.headers);
         safeSetConnected(false);
       }
     };
 
     client.onWebSocketClose = (event) => {
       if (isActiveRef.current && clientRef.current === client) {
-        console.log('🔌 [STOMP] WebSocket closed', event.code, event.reason);
         safeSetConnected(false);
       }
     };
@@ -151,9 +139,8 @@ export function StompProvider({ children }: { children: ReactNode }) {
     try {
       client.activate();
       clientRef.current = client;
-      console.log('🚀 [STOMP] Client activated');
     } catch (error) {
-      console.error('❌ [STOMP] Failed to activate client:', error);
+      // Failed to activate client
     }
 
     return () => {
@@ -169,7 +156,7 @@ export function StompProvider({ children }: { children: ReactNode }) {
         try {
           currentClient.deactivate();
         } catch (error) {
-          console.error('❌ [STOMP] Error deactivating:', error);
+          // Error deactivating
         }
       }
     };
@@ -178,23 +165,18 @@ export function StompProvider({ children }: { children: ReactNode }) {
   const subscribe = useCallback(
     (destination: string, callback: (message: IMessage) => void) => {
       if (!clientRef.current) {
-        console.warn('⚠️ [STOMP] Subscribe failed: No client');
         return () => {};
       }
 
       if (!connected) {
-        console.warn('⚠️ [STOMP] Subscribe failed: Not connected');
         return () => {};
       }
 
-      console.log('📡 [STOMP] Subscribing to:', destination);
       const subscription = clientRef.current.subscribe(destination, (message) => {
-        console.log('📨 [STOMP] Message received from:', destination);
         callback(message);
       });
 
       return () => {
-        console.log('🔕 [STOMP] Unsubscribing from:', destination);
         subscription.unsubscribe();
       };
     },
@@ -204,7 +186,6 @@ export function StompProvider({ children }: { children: ReactNode }) {
   const publish = useCallback(
     (destination: string, body: string, headers?: Record<string, string>) => {
       if (!clientRef.current || !connected) {
-        console.warn('STOMP publish attempted without active connection');
         return;
       }
 
@@ -216,7 +197,6 @@ export function StompProvider({ children }: { children: ReactNode }) {
   // Helper: Gửi tin nhắn qua WebSocket
   const sendMessage = useCallback(
     (conversationId: number, content: string, messageType: string = 'TEXT') => {
-      console.log('📤 [STOMP] Sending message:', { conversationId, content, messageType });
       publish(
         '/app/chat.send',
         JSON.stringify({

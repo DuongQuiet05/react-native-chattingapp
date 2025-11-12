@@ -158,7 +158,7 @@ function PostCard({ post, isVisible = false }: PostCardProps) {
     if (post.userReaction === reactionType) {
       await removeReaction.mutateAsync(post.id);
     } else {
-      await reactToPost.mutateAsync({ postId: post.id, reaction: { reactionType } });
+      await reactToPost.mutateAsync({ postId: post.id, reaction: { reactionType: reactionType as any } });
     }
     setShowReactions(false);
   };
@@ -243,7 +243,7 @@ function PostCard({ post, isVisible = false }: PostCardProps) {
             <View style={styles.statsRow}>
               <View style={styles.reactionsPreview}>
                 {post.userReaction && (
-                  <Text style={styles.reactionEmoji}>
+                  <Text style={styles.reactionEmojiLarge}>
                     {REACTION_EMOJIS[post.userReaction as keyof typeof REACTION_EMOJIS]}
                   </Text>
                 )}

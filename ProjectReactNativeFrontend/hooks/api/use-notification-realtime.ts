@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useStomp } from '@/providers/stomp-provider';
 import { useAuth } from '@/contexts/auth-context';
 import type { NotificationDto } from '@/lib/api/notifications';
+import { queryKeys } from '@/lib/api/query-keys';
 /**
  * Hook để subscribe vào notifications realtime và tự động cập nhật query cache
  */
@@ -23,13 +24,13 @@ export function useNotificationRealtime() {
       try {
         const notification: NotificationDto = JSON.parse(message.body);// Cập nhật unread count cho notification (chuông) - chỉ POST_COMMENT, POST_REACTION, COMMENT_REPLY
         if (['POST_COMMENT', 'POST_REACTION', 'COMMENT_REPLY'].includes(notification.notificationType)) {
-          queryClient.setQueryData<{ count: number }>(['unreadCount'], (oldData) => {
+          queryClient.setQueryData<{ count: number }>(queryKeys.notifications.unreadCount, (oldData) => {
             if (!oldData) return { count: 1 };
             return { count: oldData.count + 1 };
           });
         }
         if (['MESSAGE', 'MESSAGE_REACTION'].includes(notification.notificationType)) {
-          queryClient.setQueryData<{ count: number }>(['unreadMessageNotificationCount'], (oldData) => {
+          queryClient.setQueryData<{ count: number }>(queryKeys.notifications.unreadMessageCount, (oldData) => {
             if (!oldData) return { count: 1 };
             return { count: oldData.count + 1 };
           });
@@ -40,25 +41,24 @@ export function useNotificationRealtime() {
             const messageId = typeof notification.relatedEntityId === 'number' 
               ? notification.relatedEntityId 
               : parseInt(String(notification.relatedEntityId), 10);
-            if (!isNaN(messageId)) {
-              console.log('📬 [Notifications] Invalidating reactions for message:', messageId);
-              // Invalidate reactions query và force refetch ngay lập tức
-              queryClient.invalidateQueries({ 
-                queryKey: ['messageReactions', messageId],
-                refetchType: 'active', // Chỉ refetch nếu query đang active
+          if (!isNaN(messageId)) {
+            // Invalidate reactions query và force refetch ngay lập tức
+            queryClient.invalidateQueries({ 
+              queryKey: queryKeys.reactions.message(messageId),
+              refetchType: 'active',
+            });
+            // Force refetch ngay lập tức để đảm bảo có data mới nhất
+            setTimeout(() => {
+              queryClient.refetchQueries({ 
+                queryKey: queryKeys.reactions.message(messageId),
+                type: 'active',
               });
-              // Force refetch ngay lập tức để đảm bảo có data mới nhất
-              setTimeout(() => {
-                queryClient.refetchQueries({ 
-                  queryKey: ['messageReactions', messageId],
-                  type: 'active',
-                });
-              }, 50);
-            }
+            }, 50);
+          }
           }
         }
         queryClient.setQueriesData<{ content: NotificationDto[] }>(
-          { queryKey: ['notifications'] },
+          { queryKey: queryKeys.notifications.all },
           (oldData) => {
             if (!oldData) return oldData;
             const exists = oldData.content.some((n) => n.id === notification.id);
@@ -71,7 +71,7 @@ export function useNotificationRealtime() {
           },
         );
         queryClient.setQueriesData<{ notifications: NotificationDto[] }>(
-          { queryKey: ['unreadNotifications'] },
+          { queryKey: queryKeys.notifications.unread },
           (oldData) => {
             if (!oldData) return oldData;
             const exists = oldData.notifications.some((n) => n.id === notification.id);

@@ -10,6 +10,7 @@ import { CreateChatModal } from '@/components/create-chat-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { conversationQueryKeys, useConversations } from '@/hooks/api/use-conversations';
+import { queryKeys } from '@/lib/api/query-keys';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import type { ConversationSummary } from '@/lib/api/conversations';
 import { useStomp } from '@/providers/stomp-provider';
@@ -108,11 +109,10 @@ export default function ChatsScreen() {
 
     // Subscribe to conversation list updates (if backend sends them)
     const unsubscribeConversations = subscribe('/user/queue/conversations', (message) => {
-      try {
-        const payload = JSON.parse(message.body);
-        console.log('📬 [Chats] Received conversation update:', payload);
-        
-        queryClient.setQueryData<ConversationSummary[] | undefined>(
+        try {
+          const payload = JSON.parse(message.body);
+          
+          queryClient.setQueryData<ConversationSummary[] | undefined>(
           conversationQueryKeys.all,
           (previous) => {
             if (!previous) {
@@ -128,10 +128,10 @@ export default function ChatsScreen() {
             updated[index] = { ...updated[index], ...payload };
             return updated;
           },
-        );
-      } catch (error) {
-        console.error('❌ [Chats] Error processing conversation update:', error);
-      }
+            );
+          } catch (error) {
+            // Error processing conversation update
+          }
     });
 
     // Subscribe to all conversation topics to receive real-time message updates
@@ -142,7 +142,6 @@ export default function ChatsScreen() {
       const unsubscribe = subscribe(destination, (message) => {
         try {
           const payload = JSON.parse(message.body);
-          console.log('📬 [Chats] Received message from conversation:', conversation.id, payload);
           
           // Only process if action is SEND (new message)
           if (payload.action !== 'SEND') {
@@ -164,7 +163,7 @@ export default function ChatsScreen() {
           }
 
           queryClient.setQueryData<ConversationSummary[] | undefined>(
-            conversationQueryKeys.all,
+            queryKeys.conversations.all,
             (previous) => {
               if (!previous) {
                 return previous;
@@ -192,10 +191,10 @@ export default function ChatsScreen() {
 
               return updated;
             },
-          );
-        } catch (error) {
-          console.error('❌ [Chats] Error processing message update:', error);
-        }
+            );
+          } catch (error) {
+            // Error processing message update
+          }
       });
       unsubscribes.push(unsubscribe);
     });

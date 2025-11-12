@@ -232,7 +232,7 @@ export default function StoryViewerScreen() {
             style={styles.storyImage} 
             resizeMode="cover"
             onError={(e) => {
-              console.error('Failed to load story image:', e.nativeEvent.error);
+              // Failed to load story image
             }}
           />
         )}
@@ -271,7 +271,7 @@ export default function StoryViewerScreen() {
                 }
               }}
               onError={(error) => {
-                console.error('Video playback error:', error);
+                // Video playback error
               }}
             />
             {(!videoStatus || (videoStatus as any).isLoading || !(videoStatus as any).isLoaded) && (

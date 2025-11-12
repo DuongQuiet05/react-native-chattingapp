@@ -8,62 +8,65 @@ import {
   markNotificationAsRead,
 } from '@/lib/api/notifications';
 import { useAuth } from '@/contexts/auth-context';
+import { queryKeys } from '@/lib/api/query-keys';
+
 export function useNotifications(page = 0, size = 20) {
   const { status } = useAuth();
   return useQuery({
-    queryKey: ['notifications', page, size],
+    queryKey: queryKeys.notifications.list(page, size),
     queryFn: () => getNotifications(page, size),
-    enabled: status === 'authenticated', // Only fetch when authenticated
-    refetchInterval: status === 'authenticated' ? 30000 : false, // Refetch every 30 seconds
-    staleTime: 10000, // Consider data stale after 10 seconds
+    enabled: status === 'authenticated',
+    refetchInterval: status === 'authenticated' ? 30000 : false,
+    staleTime: 10000,
   });
 }
+
 export function useUnreadNotifications() {
   const { status } = useAuth();
   return useQuery({
-    queryKey: ['unreadNotifications'],
+    queryKey: queryKeys.notifications.unread,
     queryFn: () => getUnreadNotifications(),
-    enabled: status === 'authenticated', // Only fetch when authenticated
-    refetchInterval: status === 'authenticated' ? 30000 : false, // Refetch every 30 seconds
+    enabled: status === 'authenticated',
+    refetchInterval: status === 'authenticated' ? 30000 : false,
   });
 }
+
 export function useUnreadCount() {
   const { status } = useAuth();
   return useQuery({
-    queryKey: ['unreadCount'],
+    queryKey: queryKeys.notifications.unreadCount,
     queryFn: () => getUnreadCount(),
-    enabled: status === 'authenticated', // Only fetch when authenticated
-    refetchInterval: status === 'authenticated' ? 30000 : false, // Refetch every 30 seconds
+    enabled: status === 'authenticated',
+    refetchInterval: status === 'authenticated' ? 30000 : false,
   });
 }
+
 export function useUnreadMessageNotificationCount() {
   const { status } = useAuth();
   return useQuery({
-    queryKey: ['unreadMessageNotificationCount'],
+    queryKey: queryKeys.notifications.unreadMessageCount,
     queryFn: () => getUnreadMessageNotificationCount(),
-    enabled: status === 'authenticated', // Only fetch when authenticated
-    refetchInterval: status === 'authenticated' ? 30000 : false, // Refetch every 30 seconds
+    enabled: status === 'authenticated',
+    refetchInterval: status === 'authenticated' ? 30000 : false,
   });
 }
+
 export function useMarkNotificationAsRead() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (notificationId: number) => markNotificationAsRead(notificationId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      queryClient.invalidateQueries({ queryKey: ['unreadNotifications'] });
-      queryClient.invalidateQueries({ queryKey: ['unreadCount'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
     },
   });
 }
+
 export function useMarkAllNotificationsAsRead() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => markAllNotificationsAsRead(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      queryClient.invalidateQueries({ queryKey: ['unreadNotifications'] });
-      queryClient.invalidateQueries({ queryKey: ['unreadCount'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
     },
   });
 }

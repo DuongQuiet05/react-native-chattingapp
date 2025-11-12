@@ -110,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await AsyncStorage.removeItem(INTRO_SEEN_KEY);
     } catch (error) {
-      console.error('Error removing intro flag:', error);
+      // Error removing intro flag
     }
   }, []); // Empty deps - use ref instead
 

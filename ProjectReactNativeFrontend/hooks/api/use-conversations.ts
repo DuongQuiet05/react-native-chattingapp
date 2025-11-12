@@ -1,25 +1,39 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/auth-context';
-import { fetchConversations, createConversation, type CreateConversationRequest, type CreateConversationResponse } from '@/lib/api/conversations';
-export const conversationQueryKeys = {
-  all: ['conversations'] as const,
-  detail: (conversationId: number) => ['conversations', conversationId] as const,
-};
+import { fetchConversations, fetchConversationDetail, createConversation, type CreateConversationRequest } from '@/lib/api/conversations';
+import { queryKeys } from '@/lib/api/query-keys';
+
 export function useConversations() {
   const { user, status } = useAuth();
   return useQuery({
-    queryKey: conversationQueryKeys.all,
+    queryKey: queryKeys.conversations.all,
     queryFn: () => fetchConversations(user?.id),
-    enabled: status === 'authenticated' && !!user, // Only fetch when authenticated and user exists
+    enabled: status === 'authenticated' && !!user,
     staleTime: 30_000,
   });
 }
+
+export function useConversationDetail(conversationId: number, enabled: boolean) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: queryKeys.conversations.detail(conversationId),
+    queryFn: () => fetchConversationDetail(conversationId, user?.id),
+    enabled: enabled && !!conversationId,
+  });
+}
+
 export function useCreateConversation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: CreateConversationRequest) => createConversation(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: conversationQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.all });
     },
   });
 }
+
+// Export conversationQueryKeys for backward compatibility
+export const conversationQueryKeys = {
+  all: queryKeys.conversations.all,
+  detail: (conversationId: number) => queryKeys.conversations.detail(conversationId),
+};

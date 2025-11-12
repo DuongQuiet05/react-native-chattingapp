@@ -1,9 +1,8 @@
 import { getPendingRequestsCount } from '@/lib/api/friends';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/auth-context';
-export const friendRequestCountQueryKeys = {
-  all: ['friendRequestCount'] as const,
-};
+import { queryKeys } from '@/lib/api/query-keys';
+
 /**
  * Hook để lấy số lượng lời mời kết bạn đang chờ xử lý
  * Tự động refetch mỗi 30 giây để cập nhật badge
@@ -11,11 +10,16 @@ export const friendRequestCountQueryKeys = {
 export function useFriendRequestsCount() {
   const { status } = useAuth();
   return useQuery({
-    queryKey: friendRequestCountQueryKeys.all,
+    queryKey: queryKeys.friendRequests.count,
     queryFn: getPendingRequestsCount,
-    enabled: status === 'authenticated', // Only fetch when authenticated
-    refetchInterval: status === 'authenticated' ? 30000 : false, // Only refetch when authenticated
+    enabled: status === 'authenticated',
+    refetchInterval: status === 'authenticated' ? 30000 : false,
     refetchOnWindowFocus: status === 'authenticated',
-    staleTime: 10000, // Consider data stale after 10 seconds
+    staleTime: 10000,
   });
 }
+
+// Export friendRequestCountQueryKeys for backward compatibility
+export const friendRequestCountQueryKeys = {
+  all: queryKeys.friendRequests.count,
+};

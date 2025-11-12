@@ -1,53 +1,52 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getMessageReactions, reactToMessage, removeMessageReaction, type ReactToMessageRequest, type MessageReactionDto } from '@/lib/api/reactions';
+import { getMessageReactions, reactToMessage, removeMessageReaction, type ReactToMessageRequest } from '@/lib/api/reactions';
+import { queryKeys } from '@/lib/api/query-keys';
+
 export function useMessageReactions(messageId: number) {
   return useQuery({
-    queryKey: ['messageReactions', messageId],
+    queryKey: queryKeys.reactions.message(messageId),
     queryFn: () => getMessageReactions(messageId),
     enabled: !!messageId,
-    staleTime: 0, // Always consider data stale to ensure real-time updates
-    refetchInterval: false, // Don't auto-refetch, rely on WebSocket/notifications
-    refetchOnWindowFocus: true, // Refetch when window gains focus
-    refetchOnMount: true, // Always refetch on mount to get latest data
+    staleTime: 0,
+    refetchInterval: false,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
   });
 }
+
 export function useReactToMessage() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ messageId, reaction }: { messageId: number; reaction: ReactToMessageRequest }) =>
       reactToMessage(messageId, reaction),
-    onSuccess: (data, variables) => {
-      // Luôn refetch reactions ngay lập tức để đảm bảo có data mới nhất từ server
-      // (bao gồm cả reactions từ users khác trong conversation)
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ 
-        queryKey: ['messageReactions', variables.messageId],
+        queryKey: queryKeys.reactions.message(variables.messageId),
         refetchType: 'active',
       });
-      // Force refetch ngay lập tức (không cần setTimeout)
       queryClient.refetchQueries({ 
-        queryKey: ['messageReactions', variables.messageId],
+        queryKey: queryKeys.reactions.message(variables.messageId),
         type: 'active',
       });
-      queryClient.invalidateQueries({ queryKey: ['messages'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.messages.all });
     },
   });
 }
+
 export function useRemoveMessageReaction() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (messageId: number) => removeMessageReaction(messageId),
     onSuccess: (_, messageId) => {
-      // Invalidate và refetch reactions ngay lập tức
       queryClient.invalidateQueries({ 
-        queryKey: ['messageReactions', messageId],
+        queryKey: queryKeys.reactions.message(messageId),
         refetchType: 'active',
       });
-      // Force refetch ngay lập tức
       queryClient.refetchQueries({ 
-        queryKey: ['messageReactions', messageId],
+        queryKey: queryKeys.reactions.message(messageId),
         type: 'active',
       });
-      queryClient.invalidateQueries({ queryKey: ['messages'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.messages.all });
     },
   });
 }

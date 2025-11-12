@@ -25,6 +25,7 @@ import { searchUsers, type RelationshipStatus, getFriendsList, type FriendProfil
 import { SendFriendRequestModal } from '@/components/send-friend-request-modal';
 import { useCheckBlocked, useBlockUser, useUnblockUser } from '@/hooks/api/use-blocks';
 import { contactQueryKeys } from '@/hooks/api/use-contacts';
+import { queryKeys } from '@/lib/api/query-keys';
 import { getOrCreatePrivateConversation } from '@/lib/api/conversations';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -233,8 +234,8 @@ export default function UserProfileScreen() {
             try {
               setUnfriending(true);
               await removeFriend(userIdNum);
-              await queryClient.invalidateQueries({ queryKey: contactQueryKeys.all });
-              await queryClient.refetchQueries({ queryKey: contactQueryKeys.all });
+              await queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all });
+              await queryClient.refetchQueries({ queryKey: queryKeys.contacts.all });
               queryClient.invalidateQueries({ queryKey: ['friends'] });
               Alert.alert('Thành công', 'Đã hủy kết bạn');
               // Refresh relationship status

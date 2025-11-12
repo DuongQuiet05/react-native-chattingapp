@@ -35,19 +35,16 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     registerForPushNotificationsAsync().then((token) => {
       if (token) {
         setExpoPushToken(token);
-        console.log('✅ Expo push token:', token);
       }
     });
 
     // Listener for notifications received while app is foregrounded
     notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
-      console.log('📱 Notification received:', notification);
       setNotification(notification);
     });
 
     // Listener for user tapping on notification
     responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
-      console.log('📱 Notification tapped:', response);
       const data = response.notification.request.content.data;
       
       // Handle navigation based on notification type
@@ -91,10 +88,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         appVersion: Constants.expoConfig?.version || '1.0.0',
       }, {
         onSuccess: () => {
-          console.log('✅ Device registered with backend');
+          // Device registered with backend
         },
         onError: (error) => {
-          console.error('❌ Failed to register device:', error);
           hasRegisteredRef.current = false; // Allow retry on error
         },
       });
@@ -116,10 +112,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       const deviceId = getDeviceId();
       unregisterDevice.mutate(deviceId, {
         onSuccess: () => {
-          console.log('✅ Device unregistered');
+          // Device unregistered
         },
         onError: (error) => {
-          console.error('❌ Failed to unregister device:', error);
           hasUnregisteredRef.current = false; // Allow retry on error
         },
       });
@@ -166,7 +161,6 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
     }
     
     if (finalStatus !== 'granted') {
-      console.warn('⚠️ Failed to get push token for push notification!');
       return null;
     }
     
@@ -178,22 +172,15 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
         Constants.expoConfig?.extra?.projectId;
       
       if (!projectId) {
-        // Nếu không có projectId, log warning nhưng không throw error
-        console.warn('⚠️ Project ID not found. Push notifications may not work.');
-        console.warn('💡 To enable push notifications, add projectId to app.json:');
-        console.warn('   "extra": { "eas": { "projectId": "your-project-id" } }');
+        // Nếu không có projectId, return null
         return null;
       }
       
       token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
-      console.log('✅ Expo push token obtained:', token);
     } catch (error) {
-      console.error('❌ Error getting push token:', error);
       // Không throw error để app vẫn chạy được
       token = null;
     }
-  } else {
-    console.warn('⚠️ Must use physical device for Push Notifications');
   }
 
   return token;

@@ -1,13 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
 import { getReceivedFriendRequests } from '@/lib/api/friends';
-export const friendRequestsQueryKeys = {
-  received: ['friend-requests', 'received'] as const,
-};
+import { queryKeys } from '@/lib/api/query-keys';
+
 export function useFriendRequests() {
   return useQuery({
-    queryKey: friendRequestsQueryKeys.received,
+    queryKey: queryKeys.friendRequests.received,
     queryFn: getReceivedFriendRequests,
-    staleTime: 30_000, // 30 seconds
-    refetchInterval: 30_000, // Auto-refresh every 30 seconds
+    staleTime: 30_000,
+    refetchInterval: 30_000,
   });
 }
+
+// Export friendRequestsQueryKeys for backward compatibility
+export const friendRequestsQueryKeys = {
+  received: queryKeys.friendRequests.received,
+};

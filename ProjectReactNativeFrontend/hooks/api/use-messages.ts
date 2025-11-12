@@ -6,19 +6,18 @@ import {
     type SendMessageRequest,
     type SendMessageResponse,
 } from '@/lib/api/messages';
-import { conversationQueryKeys } from './use-conversations';
-export const messageQueryKeys = {
-  list: (conversationId: number) => [...conversationQueryKeys.detail(conversationId), 'messages'] as const,
-};
+import { queryKeys } from '@/lib/api/query-keys';
+
 export function useMessages(conversationId: number, enabled: boolean, refetchInterval?: number) {
   return useQuery({
     enabled,
-    queryKey: messageQueryKeys.list(conversationId),
+    queryKey: queryKeys.messages.list(conversationId),
     queryFn: () => fetchMessages(conversationId),
     refetchInterval: refetchInterval ?? false,
     staleTime: 10_000,
   });
 }
+
 export function useSendMessage(conversationId: number) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -27,7 +26,7 @@ export function useSendMessage(conversationId: number) {
     onSuccess: (response: SendMessageResponse) => {
       const newMessage = response.message;
       queryClient.setQueryData<MessageDto[] | undefined>(
-        messageQueryKeys.list(conversationId),
+        queryKeys.messages.list(conversationId),
         (previousMessages: MessageDto[] | undefined) => {
           if (!previousMessages) {
             return [newMessage];
@@ -44,7 +43,12 @@ export function useSendMessage(conversationId: number) {
         },
       );
       // keep conversation list fresh
-      queryClient.invalidateQueries({ queryKey: conversationQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.all });
     },
   });
 }
+
+// Export messageQueryKeys for backward compatibility
+export const messageQueryKeys = {
+  list: (conversationId: number) => queryKeys.messages.list(conversationId),
+};

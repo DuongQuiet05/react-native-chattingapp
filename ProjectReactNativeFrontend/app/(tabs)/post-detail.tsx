@@ -130,7 +130,7 @@ export default function PostDetailScreen() {
     if (post?.userReaction === reactionType) {
       await removeReaction.mutateAsync(Number(postId));
     } else {
-      await reactToPost.mutateAsync({ postId: Number(postId), reaction: { reactionType } });
+      await reactToPost.mutateAsync({ postId: Number(postId), reaction: { reactionType: reactionType as any } });
     }
     setShowReactions(false);
   };

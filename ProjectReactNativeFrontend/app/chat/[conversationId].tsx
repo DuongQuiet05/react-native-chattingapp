@@ -28,6 +28,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useConversationDetail } from '@/hooks/api/use-conversation-detail';
 import { conversationQueryKeys } from '@/hooks/api/use-conversations';
 import { messageQueryKeys, useMessages, useSendMessage } from '@/hooks/api/use-messages';
+import { queryKeys } from '@/lib/api/query-keys';
 import { useFileUpload } from '@/hooks/use-file-upload';
 import type { ConversationDetail, ConversationSummary } from '@/lib/api/conversations';
 import type { MessageDto } from '@/lib/api/messages';
@@ -64,7 +65,6 @@ export default function ConversationScreen() {
   // Phải đặt TRƯỚC các useEffect để tuân thủ Rules of Hooks
   const displayMessages = useMemo(() => {
     const msgs = localMessages.length > 0 ? localMessages : (messages ?? []);
-    console.log('🔄 [Chat] Display messages updated, count:', msgs.length);
     return msgs;
   }, [localMessages, messages]);
   
@@ -75,7 +75,6 @@ export default function ConversationScreen() {
     if (messages && Array.isArray(messages)) {
       // Chỉ sync nếu localMessages rỗng hoặc nếu có tin nhắn mới từ API
       if (localMessages.length === 0) {
-        console.log('📥 [Chat] Initial sync: Loading messages from API');
         setLocalMessages(messages);
         if (messages.length > 0) {
           lastSyncMessageIdRef.current = messages[messages.length - 1]?.id || null;
@@ -85,7 +84,6 @@ export default function ConversationScreen() {
         const lastMessageId = messages[messages.length - 1]?.id;
         if (lastMessageId && lastMessageId !== lastSyncMessageIdRef.current && lastSyncMessageIdRef.current !== null) {
           // Có tin nhắn mới từ API, sync lại
-          console.log('📥 [Chat] New messages from API, syncing...');
           setLocalMessages(messages);
           lastSyncMessageIdRef.current = lastMessageId;
         }
@@ -109,12 +107,10 @@ export default function ConversationScreen() {
 
   useEffect(() => {
     if (!Number.isFinite(numericId)) {
-      console.log('⚠️ [Chat] Invalid conversation ID:', conversationId);
       return;
     }
 
     if (!connected) {
-      console.log('⚠️ [Chat] WebSocket not connected yet, waiting...');
       // Cleanup subscription nếu có
       if (subscriptionRef.current) {
         subscriptionRef.current();
@@ -124,13 +120,9 @@ export default function ConversationScreen() {
     }
 
     const destination = `/topic/conversations/${numericId}`;
-    console.log('🔔 [Chat] Setting up subscription for conversation:', numericId);
-    console.log('🔔 [Chat] Current localMessages count:', localMessages.length);
-    console.log('🔔 [Chat] Current user ID:', user?.id);
 
     // Unsubscribe subscription cũ nếu có
     if (subscriptionRef.current) {
-      console.log('🔕 [Chat] Unsubscribing from previous subscription');
       subscriptionRef.current();
       subscriptionRef.current = null;
     }
@@ -139,9 +131,6 @@ export default function ConversationScreen() {
     const unsubscribe = subscribe(destination, (message) => {
       try {
         const rawPayload = JSON.parse(message.body);
-        console.log('📬 [Chat] Received WebSocket message:', rawPayload);
-        console.log('📬 [Chat] Message action:', rawPayload.action);
-        console.log('📬 [Chat] Message ID:', rawPayload.id);
         
         // Xử lý theo action type
         switch (rawPayload.action) {
@@ -167,21 +156,17 @@ export default function ConversationScreen() {
               thumbnailUrl: rawPayload.thumbnailUrl,
             };
 
-            console.log('📬 [Chat] Updating cache with new message:', payload.id);
-
             // Update React Query cache
             queryClient.setQueryData<MessageDto[] | undefined>(
-              messageQueryKeys.list(numericId),
+              queryKeys.messages.list(numericId),
               (previous) => {
                 if (!previous) {
-                  console.log('📬 [Chat] No previous messages, creating new array');
                   return [payload];
                 }
 
                 // Kiểm tra xem message đã tồn tại chưa
                 const exists = previous.some((item) => item.id === payload.id);
                 if (exists) {
-                  console.log('📬 [Chat] Message already exists, updating:', payload.id);
                   // Update existing message - tạo array mới hoàn toàn
                   const updated = previous.map((item) => (item.id === payload.id ? payload : item));
                   // Sắp xếp lại theo sentAt để đảm bảo thứ tự đúng
@@ -193,7 +178,6 @@ export default function ConversationScreen() {
                   return updated;
                 }
 
-                console.log('📬 [Chat] Adding new message to array');
                 // Thêm message mới và sắp xếp lại theo sentAt
                 // Tạo array mới hoàn toàn để đảm bảo React Query nhận biết thay đổi
                 const updated = [...previous, payload];
@@ -209,37 +193,26 @@ export default function ConversationScreen() {
             // Cập nhật local state ngay lập tức để UI re-render
             // Dùng functional update để đảm bảo luôn nhận được state mới nhất
             setLocalMessages((prev) => {
-              console.log('📬 [Chat] Current localMessages count:', prev.length);
-              console.log('📬 [Chat] New message ID:', payload.id);
-              console.log('📬 [Chat] New message sender ID:', payload.sender.id);
-              console.log('📬 [Chat] Current user ID:', user?.id);
-              
               const exists = prev.some((item) => item.id === payload.id);
               if (exists) {
-                console.log('📬 [Chat] Message already in local state, updating');
                 const updated = prev.map((item) => (item.id === payload.id ? payload : item));
                 updated.sort((a, b) => {
                   const dateA = new Date(a.sentAt).getTime();
                   const dateB = new Date(b.sentAt).getTime();
                   return dateA - dateB;
                 });
-                console.log('📬 [Chat] Local state updated, new count:', updated.length);
-                console.log('📬 [Chat] Updated messages IDs:', updated.map(m => m.id));
                 // Cập nhật lastSyncMessageIdRef để tránh bị sync lại từ API
                 if (updated.length > 0) {
                   lastSyncMessageIdRef.current = updated[updated.length - 1]?.id || null;
                 }
                 return updated;
               }
-              console.log('📬 [Chat] Adding new message to local state');
               const updated = [...prev, payload];
               updated.sort((a, b) => {
                 const dateA = new Date(a.sentAt).getTime();
                 const dateB = new Date(b.sentAt).getTime();
                 return dateA - dateB;
               });
-              console.log('📬 [Chat] Local state updated, new count:', updated.length);
-              console.log('📬 [Chat] Updated messages IDs:', updated.map(m => m.id));
               // Cập nhật lastSyncMessageIdRef để tránh bị sync lại từ API
               if (updated.length > 0) {
                 lastSyncMessageIdRef.current = updated[updated.length - 1]?.id || null;
@@ -248,15 +221,10 @@ export default function ConversationScreen() {
             });
             
             // Force re-render bằng cách update key ngay lập tức
-            setMessageUpdateKey(prev => {
-              const newKey = prev + 1;
-              console.log('📬 [Chat] Update key changed:', newKey);
-              return newKey;
-            });
+            setMessageUpdateKey(prev => prev + 1);
             
             // Force scroll ngay lập tức
             setTimeout(() => {
-              console.log('📬 [Chat] Scrolling to end after message update...');
               flatListRef.current?.scrollToEnd({ animated: true });
             }, 50);
 
@@ -275,7 +243,7 @@ export default function ConversationScreen() {
             // Update conversation list immediately and ensure unreadCount = 0
             // (User is viewing this conversation, so all messages are considered read)
             queryClient.setQueryData<ConversationSummary[] | undefined>(
-              conversationQueryKeys.all,
+              queryKeys.conversations.all,
               (previous) => {
                 if (!previous) {
                   return previous;
@@ -304,7 +272,7 @@ export default function ConversationScreen() {
             // Also update after a small delay to ensure it overrides any updates from chat list screen
             setTimeout(() => {
               queryClient.setQueryData<ConversationSummary[] | undefined>(
-                conversationQueryKeys.all,
+                queryKeys.conversations.all,
                 (previous) => {
                   if (!previous) {
                     return previous;
@@ -347,7 +315,7 @@ export default function ConversationScreen() {
           case 'READ': {
             // Cập nhật trạng thái đã đọc
             queryClient.setQueryData<MessageDto[] | undefined>(
-              messageQueryKeys.list(numericId),
+              queryKeys.messages.list(numericId),
               (previous) => {
                 if (!previous) {
                   return previous;
@@ -365,7 +333,7 @@ export default function ConversationScreen() {
           case 'DELIVERED': {
             // Cập nhật trạng thái đã gửi đến
             queryClient.setQueryData<MessageDto[] | undefined>(
-              messageQueryKeys.list(numericId),
+              queryKeys.messages.list(numericId),
               (previous) => {
                 if (!previous) {
                   return previous;
@@ -384,16 +352,15 @@ export default function ConversationScreen() {
             // Xử lý reaction events real-time từ WebSocket
             const messageId = rawPayload.messageId || rawPayload.id;
             if (messageId) {
-              console.log('📬 [Chat] Received reaction event for message:', messageId);
               // Invalidate và refetch reactions ngay lập tức
               queryClient.invalidateQueries({ 
-                queryKey: ['messageReactions', messageId],
+                queryKey: queryKeys.reactions.message(messageId),
                 refetchType: 'active',
               });
               // Force refetch ngay lập tức
               setTimeout(() => {
                 queryClient.refetchQueries({ 
-                  queryKey: ['messageReactions', messageId],
+                  queryKey: queryKeys.reactions.message(messageId),
                   type: 'active',
                 });
               }, 100);
@@ -423,10 +390,8 @@ export default function ConversationScreen() {
               thumbnailUrl: rawPayload.thumbnailUrl,
             };
 
-            console.log('📬 [Chat] Updating cache with message (no action):', payload.id);
-
             queryClient.setQueryData<MessageDto[] | undefined>(
-              messageQueryKeys.list(numericId),
+              queryKeys.messages.list(numericId),
               (previous) => {
                 if (!previous) {
                   return [payload];
@@ -458,13 +423,12 @@ export default function ConversationScreen() {
 
             // Invalidate để đảm bảo UI được update
             queryClient.invalidateQueries({ 
-              queryKey: messageQueryKeys.list(numericId),
+              queryKey: queryKeys.messages.list(numericId),
               refetchType: 'none',
             });
             
             // Cập nhật local state ngay lập tức
             setLocalMessages((prev) => {
-              console.log('📬 [Chat] (default) Current localMessages count:', prev.length);
               const exists = prev.some((item) => item.id === payload.id);
               if (exists) {
                 const updated = prev.map((item) => (item.id === payload.id ? payload : item));
@@ -473,7 +437,6 @@ export default function ConversationScreen() {
                   const dateB = new Date(b.sentAt).getTime();
                   return dateA - dateB;
                 });
-                console.log('📬 [Chat] (default) Local state updated, new count:', updated.length);
                 return updated;
               }
               const updated = [...prev, payload];
@@ -482,16 +445,11 @@ export default function ConversationScreen() {
                 const dateB = new Date(b.sentAt).getTime();
                 return dateA - dateB;
               });
-              console.log('📬 [Chat] (default) Local state updated, new count:', updated.length);
               return updated;
             });
 
             // Force re-render
-            setMessageUpdateKey(prev => {
-              const newKey = prev + 1;
-              console.log('📬 [Chat] (default) Update key changed:', newKey);
-              return newKey;
-            });
+            setMessageUpdateKey(prev => prev + 1);
             break;
         }
       } catch (error) {
@@ -502,7 +460,6 @@ export default function ConversationScreen() {
     subscriptionRef.current = unsubscribe;
 
     return () => {
-      console.log('🔕 [Chat] Cleaning up subscription');
       if (subscriptionRef.current) {
         subscriptionRef.current();
         subscriptionRef.current = null;
@@ -518,19 +475,11 @@ export default function ConversationScreen() {
     const originalDraft = draft;
     setDraft('');
 
-    console.log('🚀 [Chat] Sending message:', {
-      conversationId: numericId,
-      content: originalDraft,
-      connected,
-      method: connected ? 'WebSocket' : 'HTTP',
-    });
-
     try {
       // Gửi qua WebSocket nếu connected, ngược lại dùng HTTP
       if (connected) {
         sendMessageWS(numericId, originalDraft, 'TEXT');
       } else {
-        console.log('📡 [Chat] Using HTTP fallback');
         await sendMessageMutation.mutateAsync({ content: originalDraft, messageType: 'TEXT' });
       }
       
@@ -545,8 +494,6 @@ export default function ConversationScreen() {
    */
   const handleSendImage = async (uploadResult: any) => {
     try {
-      console.log('📷 [Chat] Sending image message');
-      
       await sendMessageMutation.mutateAsync({
         content: draft.trim() || '📷 Đã gửi một ảnh',
         messageType: 'IMAGE',
@@ -560,7 +507,6 @@ export default function ConversationScreen() {
       setDraft('');
       flatListRef.current?.scrollToEnd({ animated: true });
     } catch (error) {
-      console.error('❌ [Chat] Send image failed:', error);
       Alert.alert('Lỗi', 'Không thể gửi ảnh');
     }
   };
@@ -570,8 +516,6 @@ export default function ConversationScreen() {
    */
   const handleSendVideo = async (uploadResult: any) => {
     try {
-      console.log('🎥 [Chat] Sending video message');
-      
       await sendMessageMutation.mutateAsync({
         content: draft.trim() || '🎥 Đã gửi một video',
         messageType: 'VIDEO',
@@ -585,7 +529,6 @@ export default function ConversationScreen() {
       setDraft('');
       flatListRef.current?.scrollToEnd({ animated: true });
     } catch (error) {
-      console.error('❌ [Chat] Send video failed:', error);
       Alert.alert('Lỗi', 'Không thể gửi video');
     }
   };
@@ -595,8 +538,6 @@ export default function ConversationScreen() {
    */
   const handleSendFile = async (uploadResult: any) => {
     try {
-      console.log('📁 [Chat] Sending file message');
-      
       await sendMessageMutation.mutateAsync({
         content: draft.trim() || '📎 Đã gửi một file',
         messageType: 'FILE',
@@ -609,7 +550,6 @@ export default function ConversationScreen() {
       setDraft('');
       flatListRef.current?.scrollToEnd({ animated: true });
     } catch (error) {
-      console.error('❌ [Chat] Send file failed:', error);
       Alert.alert('Lỗi', 'Không thể gửi file');
     }
   };
@@ -706,7 +646,7 @@ export default function ConversationScreen() {
     }
 
     queryClient.setQueryData<ConversationSummary[] | undefined>(
-      conversationQueryKeys.all,
+      queryKeys.conversations.all,
       (previous) => {
         if (!previous) {
           return previous;
@@ -724,7 +664,7 @@ export default function ConversationScreen() {
     );
 
     queryClient.setQueryData<ConversationDetail | undefined>(
-      conversationQueryKeys.detail(numericId),
+      queryKeys.conversations.detail(numericId),
       (previous) => {
         if (!previous) {
           return previous;
@@ -758,7 +698,7 @@ export default function ConversationScreen() {
     const interval = setInterval(() => {
       displayMessages.forEach((msg) => {
         queryClient.refetchQueries({ 
-          queryKey: ['messageReactions', msg.id],
+          queryKey: queryKeys.reactions.message(msg.id),
           type: 'active',
         });
       });
@@ -776,7 +716,7 @@ export default function ConversationScreen() {
       if (displayMessages && displayMessages.length > 0) {
         displayMessages.forEach((msg) => {
           queryClient.refetchQueries({ 
-            queryKey: ['messageReactions', msg.id],
+            queryKey: queryKeys.reactions.message(msg.id),
             type: 'active',
           });
         });
