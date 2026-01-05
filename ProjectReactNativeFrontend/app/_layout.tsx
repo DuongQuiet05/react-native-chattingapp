@@ -1,3 +1,9 @@
+// Polyfill for BigInt (required by @stomp/stompjs if not available)
+if (typeof BigInt === 'undefined') {
+    global.BigInt = require('big-integer');
+}
+
+import 'text-encoding';
 import { AuthProvider } from "@/contexts/auth-context";
 import { ReactQueryProvider } from "@/providers/react-query-provider";
 import { StompProvider } from "@/providers/stomp-provider";

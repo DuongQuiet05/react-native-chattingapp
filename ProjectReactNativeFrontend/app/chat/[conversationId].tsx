@@ -421,11 +421,19 @@ export default function ConversationScreen() {
               },
             );
 
-            // Invalidate để đảm bảo UI được update
+            // Invalidate và refetch để đảm bảo UI được update
             queryClient.invalidateQueries({ 
               queryKey: queryKeys.messages.list(numericId),
-              refetchType: 'none',
+              refetchType: 'active',
             });
+            
+            // Force refetch ngay lập tức giống REACTION
+            setTimeout(() => {
+              queryClient.refetchQueries({ 
+                queryKey: queryKeys.messages.list(numericId),
+                type: 'active',
+              });
+            }, 100);
             
             // Cập nhật local state ngay lập tức
             setLocalMessages((prev) => {
@@ -708,6 +716,20 @@ export default function ConversationScreen() {
       clearInterval(interval);
     };
   }, [displayMessages, queryClient]);
+
+  // Polling tin nhắn mỗi  giây để đảm bảo realtime (fallback nếu WebSocket không ổn định)
+  useEffect(() => {
+    if (!Number.isFinite(numericId)) return;
+
+    const interval = setInterval(() => {
+      queryClient.refetchQueries({ 
+        queryKey: queryKeys.messages.list(numericId),
+        type: 'active',
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [numericId, queryClient]);
 
   useFocusEffect(
     useCallback(() => {
