@@ -38,14 +38,10 @@ export default function IndexScreen() {
     }
     let redirectHref: string | null = null;
     // Determine redirect destination
-    if (hasSeenIntro === false) {
+    if (status === 'authenticated') {
+      redirectHref = '/(tabs)/feed';
+    } else {
       redirectHref = '/(auth)/intro-1';
-    } else if (hasSeenIntro === true) {
-      if (status === 'authenticated') {
-        redirectHref = '/(tabs)/feed';
-      } else {
-        redirectHref = '/(auth)/login';
-      }
     }
     // Fallback to intro if no redirect determined
     if (!redirectHref) {

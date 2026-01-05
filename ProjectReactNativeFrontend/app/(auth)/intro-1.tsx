@@ -1,211 +1,215 @@
-import { router } from 'expo-router';
-import { StyleSheet, TouchableOpacity, View, Dimensions, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import { ThemedText } from '@/components/themed-text';
-import { Ionicons } from '@expo/vector-icons';
-const { width, height } = Dimensions.get('window');
-export default function Intro1Screen() {
-  const handleGetStarted = () => {
-    router.push('/(auth)/intro-2');
+import { Href, useRouter } from "expo-router";
+import React, { useState } from "react";
+import {
+  Dimensions,
+  FlatList,
+  Image,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Slide, slides } from "@/constants/slides";
+// import SplashScreen from "./splash"; // Removed as file does not exist
+
+const { width } = Dimensions.get("window");
+
+export default function IntroScreen() {
+  const router = useRouter();
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const handleNavigation = (route: string) => {
+    // Mark intro as seen usually happens here or in index
+    // For now just navigate
+    router.push(route as Href);
   };
+
+  const handleScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const x = e.nativeEvent.contentOffset.x;
+    const index = Math.round(x / width);
+    setActiveIndex(index);
+  };
+
+  const renderItem = ({ item }: { item: Slide }) => (
+    <View style={styles.slide}>
+      <View style={[styles.illustration, { backgroundColor: item.color }]}>
+        <Text style={styles.illustrationText}>{item.title}</Text>
+      </View>
+
+      <Text style={styles.slideDesc}>{item.description}</Text>
+    </View>
+  );
+
   return (
-    <LinearGradient
-      colors={['#F0F8FF', '#F5F5F0']}
-      style={styles.gradient}
-    >
-      <SafeAreaView style={styles.container} edges={['bottom']}>
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          bounces={false}
-        >
-          <View style={styles.imageCollage}>
-            <View style={[styles.imageCard, styles.imageCard3]}>
-              <View style={styles.placeholderImage}>
-                <Ionicons name="person" size={40} color="#87CEEB" />
-              </View>
-            </View>
-            <View style={[styles.imageCard, styles.imageCard2]}>
-              <View style={styles.placeholderImage}>
-                <Ionicons name="people" size={40} color="#87CEEB" />
-              </View>
-            </View>
-            <View style={[styles.imageCard, styles.imageCard1]}>
-              <View style={styles.placeholderImage}>
-                <Ionicons name="camera" size={40} color="#87CEEB" />
-              </View>
-            </View>
-          </View>
-          <View style={styles.textContainer}>
-            <ThemedText style={styles.title}>Welcome to Commuin</ThemedText>
-            <ThemedText style={styles.subtitle}>
-              Connect, share, and grow with a vibrant community designed for meaningful social interactions.
-            </ThemedText>
-          </View>
-          <View style={styles.featuresContainer}>
-            <View style={styles.featureCard}>
-              <View style={styles.featureIcon}>
-                <Ionicons name="chatbubbles" size={24} color="#4A90E2" />
-              </View>
-              <ThemedText style={styles.featureText}>
-                Connect with real people, build bonds.
-              </ThemedText>
-            </View>
-            <View style={styles.featureCard}>
-              <View style={styles.featureIcon}>
-                <Ionicons name="trending-up" size={24} color="#4A90E2" />
-              </View>
-              <ThemedText style={styles.featureText}>
-                Explore trending topics, stay updated.
-              </ThemedText>
-            </View>
-            <View style={styles.featureCard}>
-              <View style={styles.featureIcon}>
-                <Ionicons name="megaphone" size={24} color="#4A90E2" />
-              </View>
-              <ThemedText style={styles.featureText}>
-                Share your voice, express yourself freely.
-              </ThemedText>
-            </View>
-          </View>
-        </ScrollView>
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.button} onPress={handleGetStarted}>
-            <ThemedText style={styles.buttonText}>Let's Get Started</ThemedText>
-          </TouchableOpacity>
+    <SafeAreaView style={styles.container}>
+      {/* <SplashScreen></SplashScreen> */}
+      {/* Top bar: logo */}
+      <View style={styles.topBar}>
+        <Image
+          source={require("@/assets/logo/app-logo.png")}
+          style={styles.logo}
+        />
+      </View>
+
+      {/* Nội dung chính */}
+      <View style={styles.content}>
+        <FlatList
+          data={slides}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={handleScrollEnd}
+          contentContainerStyle={styles.sliderContent}
+        />
+
+        {/* Dots pagination */}
+        <View style={styles.dotsRow}>
+          {slides.map((_, index) => (
+            <View
+              key={index}
+              style={[styles.dot, index === activeIndex && styles.dotActive]}
+            />
+          ))}
         </View>
-      </SafeAreaView>
-    </LinearGradient>
+      </View>
+
+      {/* Nút Đăng nhập / Tạo tài khoản mới */}
+      <View style={styles.bottomButtons}>
+        <TouchableOpacity
+          style={styles.primaryButton}
+          onPress={() => handleNavigation("/(auth)/login")}
+        >
+          <Text style={styles.primaryButtonText}>Đăng nhập</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.secondaryButton}
+          onPress={() => handleNavigation("/(auth)/register")}
+        >
+          <Text style={styles.secondaryButtonText}>Tạo tài khoản</Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#f8f6f6",
   },
-  gradient: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: Math.max(40, height * 0.05),
-    paddingBottom: 20,
-  },
-  imageCollage: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: Math.min(200, height * 0.25),
-    marginBottom: 24,
-    minHeight: 180,
-  },
-  imageCard: {
-    position: 'absolute',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    width: width * 0.45,
-    height: width * 0.45 * 0.75,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-    borderWidth: 1,
-    borderColor: '#E5E5E5',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  imageCard1: {
-    left: width * 0.08,
-    top: 15,
-    zIndex: 3,
-    transform: [{ rotate: '-5deg' }],
-  },
-  imageCard2: {
-    right: width * 0.08,
-    top: 0,
-    zIndex: 2,
-    transform: [{ rotate: '3deg' }],
-  },
-  imageCard3: {
-    left: width * 0.12,
-    top: 40,
-    zIndex: 1,
-    transform: [{ rotate: '8deg' }],
-  },
-  placeholderImage: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#F0F8FF',
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  textContainer: {
-    alignItems: 'center',
-    marginBottom: 24,
-    paddingHorizontal: 8,
-  },
-  title: {
-    fontSize: Math.min(32, width * 0.08),
-    fontWeight: 'bold',
-    color: '#000000',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666666',
-    textAlign: 'center',
-    lineHeight: 22,
-    paddingHorizontal: 8,
-  },
-  featuresContainer: {
-    gap: 12,
-    marginBottom: 20,
-  },
-  featureCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  featureIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#E8F4FD',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  featureText: {
-    flex: 1,
-    fontSize: 15,
-    color: '#333333',
-    fontWeight: '500',
-  },
-  buttonContainer: {
-    paddingHorizontal: 24,
-    paddingBottom: 24,
+
+  topBar: {
+    alignItems: "center",
     paddingTop: 12,
-    backgroundColor: 'transparent',
+    paddingBottom: 4,
+    height: '30%', // Increased from 15%
+    justifyContent: 'center',
   },
-  button: {
-    backgroundColor: '#000000',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
+  logo: {
+    width: width * 0.8, // Increased from 0.6
+    height: '100%',
+    resizeMode: "contain",
   },
-  buttonText: {
-    color: '#FFFFFF',
+
+  content: {
+    flex: 1, // Take available space
+    justifyContent: 'center',
+  },
+  sliderContent: {
+    // Remove large padding to let flex center it
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  slide: {
+    width,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 32,
+  },
+  illustration: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 999,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 24,
+    opacity: 0.9,
+  },
+  illustrationText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  slideDesc: {
+    fontSize: 14,
+    color: "#6B7280",
+    textAlign: "center",
+    lineHeight: 20,
+    paddingHorizontal: 16,
+  },
+  slideTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
+    color: "#111827",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+
+  dotsRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 20,
+    marginBottom: 8,
+    gap: 8,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#D1D5DB",
+  },
+  dotActive: {
+    backgroundColor: "#2e8a8a",
+    width: 8,
+    height: 8,
+  },
+
+  bottomButtons: {
+    paddingHorizontal: 24,
+    gap: 12,
+    paddingBottom: 24, // Add padding bottom
+    // Remove absolute top
+    marginTop: 20,
+  },
+  primaryButton: {
+    height: 48,
+    borderRadius: 999,
+    backgroundColor: "#2e8a8a",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  primaryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  secondaryButton: {
+    height: 48,
+    borderRadius: 999,
+    backgroundColor: "#eaeaeaff",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  secondaryButtonText: {
+    color: "#111827",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });
