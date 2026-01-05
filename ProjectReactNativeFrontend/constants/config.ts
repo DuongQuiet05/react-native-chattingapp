@@ -1,5 +1,5 @@
-export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://192.168.2.8:8080/api';
-export const WS_BASE_URL = process.env.EXPO_PUBLIC_WS_BASE_URL ?? 'ws://192.168.2.8:8080/ws';
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://192.168.2.182:8080/api';
+export const WS_BASE_URL = process.env.EXPO_PUBLIC_WS_BASE_URL ?? 'ws://192.168.2.182:8080/ws';
 // Auth API Endpoints
 export const API_ENDPOINTS = {
   REGISTER: `${API_BASE_URL}/auth/register`,

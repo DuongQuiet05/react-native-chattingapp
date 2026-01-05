@@ -13,8 +13,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+
 import { register } from '@/lib/api/auth';
+import { ThemedView } from '@/components/themed-view';
 export default function RegisterScreen() {
   const [username, setUsername] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -48,21 +49,16 @@ export default function RegisterScreen() {
         displayName: displayName || username,
       });Alert.alert(
         'Thành công',
-        'Tài khoản đã được tạo! Vui lòng xác thực số điện thoại.',
+        'Tài khoản đã được tạo! Vui lòng đăng nhập để tiếp tục.',
         [
           {
-            text: 'Xác thực ngay',
+            text: 'Đăng nhập ngay',
             onPress: () => {
-              router.push({
-                pathname: '/verify-otp',
-                params: {
-                  phoneNumber,
-                  username,
-                },
-              } as any);
+              router.replace('/(auth)/login');
             },
           },
         ]
+
       );
     } catch (error: any) {const errorMsg =
         error.response?.data?.message ||
@@ -197,6 +193,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
+    color: '#fff',
   },
   button: {
     backgroundColor: '#0a84ff',

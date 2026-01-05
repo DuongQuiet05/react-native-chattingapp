@@ -204,6 +204,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
+    color: '#fff',
   },
   error: {
     color: '#d32f2f',
