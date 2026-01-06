@@ -92,7 +92,7 @@ export default function LoginScreen() {
     try {
       await signIn({ username: identifier.trim(), password });
       // Redirect handled by logic or router replace if not auto-handled
-       router.replace("/(tabs)/feed");
+       router.replace("/(tabs)/chats");
     } catch (error: any) {
       let errorMessage = '';
       let errorDetails: any = null;

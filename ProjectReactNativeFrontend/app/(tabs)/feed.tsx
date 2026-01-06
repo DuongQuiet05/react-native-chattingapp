@@ -1,70 +1,72 @@
-import React, { useState, useRef, useCallback } from 'react';
+import { PostMediaCarousel } from "@/components/post-media-carousel";
+import { StoriesList } from "@/components/stories-list";
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { BorderRadius, Colors, Shadows, Spacing } from "@/constants/theme";
+import { useAuth } from "@/contexts/auth-context";
+import { useUnreadCount } from "@/hooks/api/use-notifications";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Image,
-  RefreshControl,
+  useFeed,
+  useReactToPost,
+  useRemovePostReaction,
+} from "@/hooks/api/use-posts";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
+import { router } from "expo-router";
+import React, { useCallback, useRef, useState } from "react";
+import {
   ActivityIndicator,
   Dimensions,
   FlatList,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
   ViewToken,
-} from 'react-native';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors, Spacing, BorderRadius, Shadows } from '@/constants/theme';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Ionicons } from '@expo/vector-icons';
-import { useFeed, useReactToPost, useRemovePostReaction } from '@/hooks/api/use-posts';
-import { useContacts } from '@/hooks/api/use-contacts';
-import { useUnreadCount } from '@/hooks/api/use-notifications';
-import { StoriesList } from '@/components/stories-list';
-import { useStories } from '@/hooks/api/use-stories';
-import { router } from 'expo-router';
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
-import { useAuth } from '@/contexts/auth-context';
-import { PostMediaCarousel } from '@/components/post-media-carousel';
-import { useFocusEffect } from '@react-navigation/native';
-import type { StoryDto } from '@/lib/api/stories';
+} from "react-native";
 dayjs.extend(relativeTime);
-const { width } = Dimensions.get('window');
-const REACTION_TYPES = ['LIKE', 'LOVE', 'HAHA', 'WOW', 'SAD', 'ANGRY'] as const;
+const { width } = Dimensions.get("window");
+const REACTION_TYPES = ["LIKE", "LOVE", "HAHA", "WOW", "SAD", "ANGRY"] as const;
 const REACTION_EMOJIS = {
-  LIKE: '👍',
-  LOVE: '❤️',
-  HAHA: '😂',
-  WOW: '😮',
-  SAD: '😢',
-  ANGRY: '😡',
+  LIKE: "👍",
+  LOVE: "❤️",
+  HAHA: "😂",
+  WOW: "😮",
+  SAD: "😢",
+  ANGRY: "😡",
 };
-const GRADIENT_COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8'];
+const GRADIENT_COLORS = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8"];
 const communities = [
   {
-    id: '1',
-    name: 'EarthKind Collective',
-    description: 'A community of conscious individuals united to protect, preserve, and restore the planet for future generations.',
-    icon: '🌍',
-    color: '#87CEEB',
+    id: "1",
+    name: "EarthKind Collective",
+    description:
+      "A community of conscious individuals united to protect, preserve, and restore the planet for future generations.",
+    icon: "🌍",
+    color: "#87CEEB",
     members: 5000,
     memberAvatars: [
-      'https://i.pravatar.cc/150?img=1',
-      'https://i.pravatar.cc/150?img=2',
-      'https://i.pravatar.cc/150?img=3',
+      "https://i.pravatar.cc/150?img=1",
+      "https://i.pravatar.cc/150?img=2",
+      "https://i.pravatar.cc/150?img=3",
     ],
   },
   {
-    id: '2',
-    name: 'Commuin Photo',
-    description: 'Where good energy people connect deeply through authenticity, meaningful conversations, and shared experiences.',
-    icon: '📷',
-    color: '#87CEEB',
+    id: "2",
+    name: "Commuin Photo",
+    description:
+      "Where good energy people connect deeply through authenticity, meaningful conversations, and shared experiences.",
+    icon: "📷",
+    color: "#87CEEB",
     members: 3200,
     memberAvatars: [
-      'https://i.pravatar.cc/150?img=4',
-      'https://i.pravatar.cc/150?img=5',
-      'https://i.pravatar.cc/150?img=6',
+      "https://i.pravatar.cc/150?img=4",
+      "https://i.pravatar.cc/150?img=5",
+      "https://i.pravatar.cc/150?img=6",
     ],
   },
 ];
@@ -75,7 +77,7 @@ interface PostCardProps {
 }
 function PostCard({ post, isVisible = false }: PostCardProps) {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
+  const colors = Colors[colorScheme ?? "light"];
   const { user } = useAuth();
   const reactToPost = useReactToPost();
   const removeReaction = useRemovePostReaction();
@@ -84,20 +86,27 @@ function PostCard({ post, isVisible = false }: PostCardProps) {
   const hasVideo = post.mediaUrls?.some((url: string) => {
     if (!url) return false;
     const lowerUrl = url.toLowerCase();
-    return lowerUrl.includes('/video/upload/') || 
-           lowerUrl.includes('/video/') ||
-           ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v', '.3gp'].some(ext => lowerUrl.includes(ext));
+    return (
+      lowerUrl.includes("/video/upload/") ||
+      lowerUrl.includes("/video/") ||
+      [".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v", ".3gp"].some((ext) =>
+        lowerUrl.includes(ext)
+      )
+    );
   });
   const handleReaction = async (reactionType: string) => {
     if (post.userReaction === reactionType) {
       await removeReaction.mutateAsync(post.id);
     } else {
-      await reactToPost.mutateAsync({ postId: post.id, reaction: { reactionType: reactionType as any } });
+      await reactToPost.mutateAsync({
+        postId: post.id,
+        reaction: { reactionType: reactionType as any },
+      });
     }
     setShowReactions(false);
   };
   const formatNumber = (num: number) => {
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
+    if (num >= 1000) return (num / 1000).toFixed(1) + "k";
     return num.toString();
   };
   return (
@@ -106,24 +115,32 @@ function PostCard({ post, isVisible = false }: PostCardProps) {
       <View style={styles.postHeader}>
         <TouchableOpacity
           style={styles.postAuthor}
-          onPress={() => router.push(`/(tabs)/profile/${post.authorId}` as any)}>
+          onPress={() => router.push(`/(tabs)/profile/${post.authorId}` as any)}
+        >
           <View style={styles.avatarContainer}>
             <Image
-              source={{ uri: post.authorAvatar || 'https://i.pravatar.cc/150' }}
+              source={{ uri: post.authorAvatar || "https://i.pravatar.cc/150" }}
               style={styles.avatar}
             />
           </View>
           <View style={styles.authorInfo}>
-            <Text style={[styles.authorName, { color: colors.text }]}>{post.authorName}</Text>
+            <Text style={[styles.authorName, { color: colors.text }]}>
+              {post.authorName}
+            </Text>
             <View style={styles.postMeta}>
               <Text style={[styles.postTime, { color: colors.textSecondary }]}>
                 {dayjs(post.createdAt).fromNow()}
               </Text>
               {post.privacyType && (
                 <>
-                  <Text style={[styles.postTime, { color: colors.textSecondary }]}> • </Text>
+                  <Text
+                    style={[styles.postTime, { color: colors.textSecondary }]}
+                  >
+                    {" "}
+                    •{" "}
+                  </Text>
                   <IconSymbol
-                    name={post.privacyType === 'PUBLIC' ? 'globe' : 'lock.fill'}
+                    name={post.privacyType === "PUBLIC" ? "globe" : "lock.fill"}
                     size={12}
                     color={colors.textSecondary}
                   />
@@ -137,8 +154,15 @@ function PostCard({ post, isVisible = false }: PostCardProps) {
         </TouchableOpacity>
       </View>
       {/* Post Content */}
-      <TouchableOpacity onPress={() => router.push(`/(tabs)/post-detail?postId=${post.id}` as any)}>
-        <Text style={[styles.postContent, { color: colors.text }]} numberOfLines={5}>
+      <TouchableOpacity
+        onPress={() =>
+          router.push(`/(tabs)/post-detail?postId=${post.id}` as any)
+        }
+      >
+        <Text
+          style={[styles.postContent, { color: colors.text }]}
+          numberOfLines={5}
+        >
           {post.content}
         </Text>
       </TouchableOpacity>
@@ -151,7 +175,8 @@ function PostCard({ post, isVisible = false }: PostCardProps) {
           }}
           style={styles.mediaContainer}
           activeOpacity={1}
-          delayPressIn={100}>
+          delayPressIn={100}
+        >
           <PostMediaCarousel
             mediaUrls={post.mediaUrls}
             imageWidth={width - Spacing.md * 4}
@@ -167,7 +192,9 @@ function PostCard({ post, isVisible = false }: PostCardProps) {
       {post.location && (
         <View style={styles.locationContainer}>
           <Ionicons name="location" size={14} color={colors.textSecondary} />
-          <Text style={[styles.locationText, { color: colors.textSecondary }]}>{post.location}</Text>
+          <Text style={[styles.locationText, { color: colors.textSecondary }]}>
+            {post.location}
+          </Text>
         </View>
       )}
       {/* Post Stats */}
@@ -178,7 +205,11 @@ function PostCard({ post, isVisible = false }: PostCardProps) {
               <View style={styles.reactionsPreview}>
                 {post.userReaction && (
                   <Text style={styles.reactionEmojiLarge}>
-                    {REACTION_EMOJIS[post.userReaction as keyof typeof REACTION_EMOJIS]}
+                    {
+                      REACTION_EMOJIS[
+                        post.userReaction as keyof typeof REACTION_EMOJIS
+                      ]
+                    }
                   </Text>
                 )}
               </View>
@@ -206,22 +237,34 @@ function PostCard({ post, isVisible = false }: PostCardProps) {
                 setShowReactions(!showReactions);
               }
             }}
-            onLongPress={() => setShowReactions(true)}>
-            <Ionicons 
-              name={post.userReaction ? "heart" : "heart-outline"} 
-              size={20} 
-              color={post.userReaction ? '#FF3040' : '#666666'} 
+            onLongPress={() => setShowReactions(true)}
+          >
+            <Ionicons
+              name={post.userReaction ? "heart" : "heart-outline"}
+              size={20}
+              color={post.userReaction ? "#FF3040" : "#666666"}
             />
-            <Text style={styles.actionCount}>{formatNumber(post.reactionCount || 0)}</Text>
+            <Text style={styles.actionCount}>
+              {formatNumber(post.reactionCount || 0)}
+            </Text>
           </TouchableOpacity>
           {showReactions && (
-            <View style={[styles.reactionsPicker, { backgroundColor: colors.card }, Shadows.lg]}>
+            <View
+              style={[
+                styles.reactionsPicker,
+                { backgroundColor: colors.card },
+                Shadows.lg,
+              ]}
+            >
               {REACTION_TYPES.map((type) => (
                 <TouchableOpacity
                   key={type}
                   style={styles.reactionOption}
-                  onPress={() => handleReaction(type)}>
-                  <Text style={styles.reactionEmojiLarge}>{REACTION_EMOJIS[type]}</Text>
+                  onPress={() => handleReaction(type)}
+                >
+                  <Text style={styles.reactionEmojiLarge}>
+                    {REACTION_EMOJIS[type]}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -229,21 +272,32 @@ function PostCard({ post, isVisible = false }: PostCardProps) {
         </View>
         <TouchableOpacity
           style={styles.actionButton}
-          onPress={() => router.push(`/(tabs)/post-detail?postId=${post.id}` as any)}>
+          onPress={() =>
+            router.push(`/(tabs)/post-detail?postId=${post.id}` as any)
+          }
+        >
           <Ionicons name="chatbubble-outline" size={20} color="#666666" />
-          <Text style={styles.actionCount}>{formatNumber(post.commentCount || 0)}</Text>
+          <Text style={styles.actionCount}>
+            {formatNumber(post.commentCount || 0)}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionButton}>
           <Ionicons name="paper-plane-outline" size={20} color="#666666" />
-          <Text style={styles.actionCount}>{formatNumber(post.shareCount || 0)}</Text>
+          <Text style={styles.actionCount}>
+            {formatNumber(post.shareCount || 0)}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionButton}>
           <Ionicons name="repeat-outline" size={20} color="#666666" />
-          <Text style={styles.actionCount}>{formatNumber(post.repostCount || 0)}</Text>
+          <Text style={styles.actionCount}>
+            {formatNumber(post.repostCount || 0)}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionButton}>
           <Ionicons name="bookmark-outline" size={20} color="#666666" />
-          <Text style={styles.actionCount}>{formatNumber(post.bookmarkCount || 0)}</Text>
+          <Text style={styles.actionCount}>
+            {formatNumber(post.bookmarkCount || 0)}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -251,7 +305,7 @@ function PostCard({ post, isVisible = false }: PostCardProps) {
 }
 function CommunitiesSection() {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
+  const colors = Colors[colorScheme ?? "light"];
   const formatMembers = (count: number) => {
     if (count >= 1000) {
       return `+${(count / 1000).toFixed(1)}K`;
@@ -263,10 +317,19 @@ function CommunitiesSection() {
       <View style={styles.communityHeader}>
         <Text style={styles.communityTitle}>Popular Community</Text>
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.communityScroll}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.communityScroll}
+      >
         {communities.map((community) => (
           <View key={community.id} style={styles.communityCard}>
-            <View style={[styles.communityIcon, { backgroundColor: community.color }]}>
+            <View
+              style={[
+                styles.communityIcon,
+                { backgroundColor: community.color },
+              ]}
+            >
               <Text style={styles.communityEmoji}>{community.icon}</Text>
             </View>
             <Text style={styles.communityName} numberOfLines={1}>
@@ -284,14 +347,19 @@ function CommunitiesSection() {
                     style={[styles.memberAvatar, { left: index * 20 }]}
                   />
                 ))}
-                <View style={[styles.memberCountBadge, { left: community.memberAvatars.length * 20 }]}>
-                  <Text style={styles.memberCountText}>{formatMembers(community.members)}</Text>
+                <View
+                  style={[
+                    styles.memberCountBadge,
+                    { left: community.memberAvatars.length * 20 },
+                  ]}
+                >
+                  <Text style={styles.memberCountText}>
+                    {formatMembers(community.members)}
+                  </Text>
                 </View>
               </View>
             )}
-            <TouchableOpacity
-              style={styles.joinButton}
-              onPress={() => {}}>
+            <TouchableOpacity style={styles.joinButton} onPress={() => {}}>
               <Text style={styles.joinButtonText}>Join</Text>
             </TouchableOpacity>
           </View>
@@ -302,8 +370,10 @@ function CommunitiesSection() {
 }
 export default function FeedScreen() {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
-  const [activeTab, setActiveTab] = useState<'For You' | 'Following' | 'My Community'>('For You');
+  const colors = Colors[colorScheme ?? "light"];
+  const [activeTab, setActiveTab] = useState<
+    "For You" | "Following" | "My Community"
+  >("For You");
   const [page, setPage] = useState(0);
   const { data, isLoading, isRefetching, refetch } = useFeed(page, 20);
   const { data: unreadCount } = useUnreadCount();
@@ -313,19 +383,22 @@ export default function FeedScreen() {
     refetch();
   };
   const handleCreatePost = () => {
-    router.push('/(tabs)/create-post' as any);
+    router.push("/(tabs)/create-post" as any);
   };
-  const tabs = ['For You', 'Following', 'My Community'] as const;
+  const tabs = ["For You", "Following", "My Community"] as const;
   // Track visible posts for auto-play video
-  const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken[] }) => {
-    const visibleIds = new Set<number>();
-    viewableItems.forEach((item) => {
-      if (item.item?.id) {
-        visibleIds.add(item.item.id);
-      }
-    });
-    setVisiblePostIds(visibleIds);
-  }, []);
+  const onViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      const visibleIds = new Set<number>();
+      viewableItems.forEach((item) => {
+        if (item.item?.id) {
+          visibleIds.add(item.item.id);
+        }
+      });
+      setVisiblePostIds(visibleIds);
+    },
+    []
+  );
   const viewabilityConfig = useRef({
     itemVisiblePercentThreshold: 50, // Post is considered visible when 50% is on screen
   }).current;
@@ -348,13 +421,20 @@ export default function FeedScreen() {
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity
+            style={styles.createButton}
+            onPress={() => router.push("/(tabs)/create-post" as any)}
+          >
+            <Ionicons name="add-circle" size={28} color="#2e8a8a" />
+          </TouchableOpacity>
+          <TouchableOpacity
             style={styles.notificationButton}
-            onPress={() => router.push('/(tabs)/notifications' as any)}>
+            onPress={() => router.push("/(tabs)/notifications" as any)}
+          >
             <Ionicons name="notifications" size={22} color="#000000" />
             {unreadCount && unreadCount.count > 0 && (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>
-                  {unreadCount.count > 99 ? '99+' : unreadCount.count}
+                  {unreadCount.count > 99 ? "99+" : unreadCount.count}
                 </Text>
               </View>
             )}
@@ -364,9 +444,15 @@ export default function FeedScreen() {
       {/* Search Bar */}
       <TouchableOpacity
         style={styles.searchBarContainer}
-        onPress={() => router.push('/(tabs)/search' as any)}>
+        onPress={() => router.push("/(tabs)/search" as any)}
+      >
         <View style={styles.searchBar}>
-          <Ionicons name="search" size={20} color="#999999" style={styles.searchIcon} />
+          <Ionicons
+            name="search"
+            size={20}
+            color="#999999"
+            style={styles.searchIcon}
+          />
           <Text style={styles.searchPlaceholder}>Tìm kiếm...</Text>
         </View>
       </TouchableOpacity>
@@ -375,17 +461,20 @@ export default function FeedScreen() {
         {tabs.map((tab) => (
           <TouchableOpacity
             key={tab}
-            style={[
-              styles.tab,
-              activeTab === tab && styles.activeTab,
-            ]}
-            onPress={() => setActiveTab(tab)}>
+            style={[styles.tab, activeTab === tab && styles.activeTab]}
+            onPress={() => setActiveTab(tab)}
+          >
             <Text
               style={[
                 styles.tabText,
                 activeTab === tab && styles.activeTabText,
-              ]}>
-              {tab === 'For You' ? 'Dành cho bạn' : tab === 'Following' ? 'Đang theo dõi' : 'Cộng đồng'}
+              ]}
+            >
+              {tab === "For You"
+                ? "Dành cho bạn"
+                : tab === "Following"
+                ? "Đang theo dõi"
+                : "Cộng đồng"}
             </Text>
           </TouchableOpacity>
         ))}
@@ -401,32 +490,41 @@ export default function FeedScreen() {
           style={styles.feed}
           contentContainerStyle={styles.feedContent}
           data={[
-            { type: 'stories', id: 'stories' } as any,
-            ...(activeTab === 'My Community' ? [{ type: 'communities', id: 'communities' } as any] : []),
+            { type: "stories", id: "stories" } as any,
+            ...(activeTab === "My Community"
+              ? [{ type: "communities", id: "communities" } as any]
+              : []),
             ...data.content
               .filter((post) => !post.isHidden)
-              .map((post) => ({ type: 'post', ...post } as any)),
-            ...(activeTab === 'My Community' ? [{ type: 'communities-bottom', id: 'communities-bottom' } as any] : []),
+              .map((post) => ({ type: "post", ...post } as any)),
+            ...(activeTab === "My Community"
+              ? [
+                  {
+                    type: "communities-bottom",
+                    id: "communities-bottom",
+                  } as any,
+                ]
+              : []),
           ]}
           keyExtractor={(item: any) => {
-            if (item.type === 'stories') return 'stories';
-            if (item.type === 'communities') return 'communities';
-            if (item.type === 'communities-bottom') return 'communities-bottom';
+            if (item.type === "stories") return "stories";
+            if (item.type === "communities") return "communities";
+            if (item.type === "communities-bottom") return "communities-bottom";
             return `post-${item.id}`;
           }}
           renderItem={({ item }: { item: any }) => {
-            if (item.type === 'stories') {
+            if (item.type === "stories") {
               return <StoriesList />;
             }
-            if (item.type === 'communities' || item.type === 'communities-bottom') {
+            if (
+              item.type === "communities" ||
+              item.type === "communities-bottom"
+            ) {
               return <CommunitiesSection />;
             }
-            if (item.type === 'post') {
+            if (item.type === "post") {
               return (
-                <PostCard 
-                  post={item} 
-                  isVisible={visiblePostIds.has(item.id)}
-                />
+                <PostCard post={item} isVisible={visiblePostIds.has(item.id)} />
               );
             }
             return null;
@@ -443,9 +541,15 @@ export default function FeedScreen() {
                 Chưa có bài viết nào
               </Text>
               <TouchableOpacity
-                style={[styles.emptyButton, { backgroundColor: colors.primary }]}
-                onPress={handleCreatePost}>
-                <Text style={styles.emptyButtonText}>Tạo bài viết đầu tiên</Text>
+                style={[
+                  styles.emptyButton,
+                  { backgroundColor: colors.primary },
+                ]}
+                onPress={handleCreatePost}
+              >
+                <Text style={styles.emptyButtonText}>
+                  Tạo bài viết đầu tiên
+                </Text>
               </TouchableOpacity>
             </View>
           }
@@ -458,7 +562,8 @@ export default function FeedScreen() {
           </Text>
           <TouchableOpacity
             style={[styles.emptyButton, { backgroundColor: colors.primary }]}
-            onPress={handleCreatePost}>
+            onPress={handleCreatePost}
+          >
             <Text style={styles.emptyButtonText}>Tạo bài viết đầu tiên</Text>
           </TouchableOpacity>
         </View>
@@ -471,59 +576,63 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: Spacing.md,
     paddingTop: 50,
     paddingBottom: Spacing.md,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
   },
   headerLeft: {
     flex: 1,
   },
   headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: Spacing.md,
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#000000',
+    fontWeight: "bold",
+    color: "#000000",
     letterSpacing: 0.5,
   },
+  createButton: {
+    padding: Spacing.xs,
+    marginRight: 4,
+  },
   notificationButton: {
-    position: 'relative',
+    position: "relative",
     padding: Spacing.xs,
   },
   badge: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     right: 0,
     borderRadius: 10,
     minWidth: 18,
     height: 18,
     paddingHorizontal: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#000000',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#000000",
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: "#FFFFFF",
   },
   badgeText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   createButton: {
     padding: Spacing.xs,
   },
   tabsContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     gap: Spacing.sm,
   },
   tab: {
@@ -532,17 +641,17 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   activeTab: {
-    backgroundColor: '#000000',
+    backgroundColor: "#000000",
     borderRadius: 20,
   },
   tabText: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#999999',
+    fontWeight: "500",
+    color: "#999999",
   },
   activeTabText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+    color: "#FFFFFF",
+    fontWeight: "600",
   },
   feed: {
     flex: 1,
@@ -552,13 +661,13 @@ const styles = StyleSheet.create({
   },
   center: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingTop: 100,
   },
   emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingTop: 100,
     paddingHorizontal: Spacing.lg,
   },
@@ -573,9 +682,9 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.full,
   },
   emptyButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   // Stories
   storiesContainer: {
@@ -587,52 +696,52 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   storyItem: {
-    alignItems: 'center',
+    alignItems: "center",
     width: 72,
   },
   addStoryCircle: {
     width: 68,
     height: 68,
     borderRadius: 34,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: '#CCCCCC',
-    backgroundColor: '#FFFFFF',
+    borderStyle: "dashed",
+    borderColor: "#CCCCCC",
+    backgroundColor: "#FFFFFF",
   },
   storyCircleWrapper: {
     width: 68,
     height: 68,
     borderRadius: 34,
-    position: 'relative',
+    position: "relative",
   },
   storyRing: {
-    position: 'absolute',
+    position: "absolute",
     width: 68,
     height: 68,
     borderRadius: 34,
     borderWidth: 2.5,
-    borderColor: '#E1306C',
+    borderColor: "#E1306C",
   },
   storyCircle: {
     width: 68,
     height: 68,
     borderRadius: 34,
-    overflow: 'hidden',
+    overflow: "hidden",
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: "#fff",
   },
   storyAvatar: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   storyName: {
     fontSize: 12,
     marginTop: 6,
-    textAlign: 'center',
-    fontWeight: '500',
-    color: '#000000',
+    textAlign: "center",
+    fontWeight: "500",
+    color: "#000000",
   },
   // Post Card
   postCard: {
@@ -640,35 +749,35 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
     padding: Spacing.md,
     borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 2,
   },
   postHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: Spacing.md,
   },
   postAuthor: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
   },
   avatarContainer: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    overflow: 'hidden',
+    overflow: "hidden",
     borderWidth: 2,
-    borderColor: 'transparent',
+    borderColor: "transparent",
   },
   avatar: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   authorInfo: {
     marginLeft: Spacing.sm,
@@ -676,11 +785,11 @@ const styles = StyleSheet.create({
   },
   authorName: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   postMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginTop: 2,
     gap: 4,
   },
@@ -695,7 +804,7 @@ const styles = StyleSheet.create({
   mediaContainer: {
     marginBottom: Spacing.md,
     borderRadius: BorderRadius.md,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   postImage: {
     width: width - Spacing.md * 4,
@@ -703,8 +812,8 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
   },
   locationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
     marginBottom: Spacing.sm,
   },
@@ -712,50 +821,50 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   postStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingVertical: Spacing.sm,
     marginBottom: Spacing.xs,
   },
   statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
   },
   reactionsPreview: {
-    flexDirection: 'row',
+    flexDirection: "row",
   },
   statsText: {
     fontSize: 14,
   },
   postActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingTop: Spacing.md,
     marginTop: Spacing.sm,
   },
   reactionContainer: {
-    position: 'relative',
+    position: "relative",
   },
   actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
     paddingVertical: Spacing.xs,
     paddingHorizontal: Spacing.xs,
   },
   actionCount: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#666666',
+    fontWeight: "500",
+    color: "#666666",
   },
   reactionsPicker: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 50,
     left: 0,
-    flexDirection: 'row',
+    flexDirection: "row",
     padding: Spacing.sm,
     borderRadius: BorderRadius.lg,
     gap: Spacing.sm,
@@ -772,16 +881,16 @@ const styles = StyleSheet.create({
     marginVertical: Spacing.lg,
   },
   communityHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: Spacing.md,
     marginBottom: Spacing.md,
   },
   communityTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#000000',
+    fontWeight: "bold",
+    color: "#000000",
   },
   communityScroll: {
     paddingLeft: Spacing.md,
@@ -791,16 +900,16 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     borderRadius: 16,
     marginRight: Spacing.md,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     ...Shadows.sm,
-    position: 'relative',
+    position: "relative",
   },
   communityIcon: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: Spacing.md,
   },
   communityEmoji: {
@@ -808,67 +917,67 @@ const styles = StyleSheet.create({
   },
   communityName: {
     fontSize: 17,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: Spacing.xs,
-    color: '#000000',
+    color: "#000000",
   },
   communityDescription: {
     fontSize: 13,
     lineHeight: 18,
     marginBottom: Spacing.md,
-    color: '#666666',
+    color: "#666666",
   },
   membersOverlay: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: Spacing.md,
     height: 32,
-    position: 'relative',
+    position: "relative",
   },
   memberAvatar: {
     width: 28,
     height: 28,
     borderRadius: 14,
     borderWidth: 2,
-    borderColor: '#FFFFFF',
-    position: 'absolute',
+    borderColor: "#FFFFFF",
+    position: "absolute",
   },
   memberCountBadge: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E5E5',
-    position: 'absolute',
+    borderColor: "#E5E5E5",
+    position: "absolute",
   },
   memberCountText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#000000',
+    fontWeight: "600",
+    color: "#000000",
   },
   joinButton: {
     paddingVertical: 10,
     paddingHorizontal: 24,
     borderRadius: 8,
-    backgroundColor: '#000000',
-    alignSelf: 'flex-start',
+    backgroundColor: "#000000",
+    alignSelf: "flex-start",
   },
   joinButtonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   // Search Bar
   searchBarContainer: {
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
   },
   searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F5F5F5',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F5F5F5",
     borderRadius: 12,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
@@ -880,6 +989,6 @@ const styles = StyleSheet.create({
   searchPlaceholder: {
     flex: 1,
     fontSize: 15,
-    color: '#999999',
+    color: "#999999",
   },
 });

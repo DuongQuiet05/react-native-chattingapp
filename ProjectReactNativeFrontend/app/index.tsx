@@ -39,7 +39,7 @@ export default function IndexScreen() {
     let redirectHref: string | null = null;
     // Determine redirect destination
     if (status === 'authenticated') {
-      redirectHref = '/(tabs)/feed';
+      redirectHref = '/(tabs)/chats';
     } else {
       redirectHref = '/(auth)/intro-1';
     }
