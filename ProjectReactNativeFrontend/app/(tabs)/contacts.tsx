@@ -113,7 +113,7 @@ export default function ContactsScreen() {
   const isFetching = contactsFetching || requestsFetching;
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.safeArea} edges={[]}>
         <View style={styles.centered}>
           <ActivityIndicator size="large" color="#000" />
         </View>
@@ -122,7 +122,7 @@ export default function ContactsScreen() {
   }
   if (isError) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.safeArea} edges={[]}>
         <View style={styles.centered}>
           <Text style={styles.errorText}>Không thể tải danh sách</Text>
           <TouchableOpacity onPress={handleRefresh}>
@@ -133,7 +133,7 @@ export default function ContactsScreen() {
     );
   }
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.safeArea} edges={[]}>
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>

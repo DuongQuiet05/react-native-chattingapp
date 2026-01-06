@@ -94,16 +94,26 @@ public class UserService {
     }
     private UserProfileDto convertToProfileDto(User user) {
         return UserProfileDto.builder()
+                // Basic Info
                 .id(user.getId())
                 .username(user.getUsername())
                 .displayName(user.getDisplayName())
                 .avatarUrl(user.getAvatarUrl())
+                // Profile Details
                 .bio(user.getBio())
                 .dateOfBirth(user.getDateOfBirth())
                 .gender(user.getGender())
+                // Contact Info
+                .phoneNumber(user.getPhoneNumber())
+                .isPhoneVerified(user.getIsPhoneVerified())
+                // Status & Role
                 .status(user.getStatus().name())
+                .role(user.getRole().name())
+                .isBlocked(user.getIsBlocked())
+                // Timestamps
                 .lastSeen(user.getLastSeen())
                 .createdAt(user.getCreatedAt())
+                .updatedAt(user.getUpdatedAt())
                 .build();
     }
 }

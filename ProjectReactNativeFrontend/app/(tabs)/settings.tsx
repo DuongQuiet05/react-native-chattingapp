@@ -1,74 +1,80 @@
-import React, { useState, useEffect } from 'react';
+import { Colors, Spacing } from "@/constants/theme";
+import { useAuth } from "@/contexts/auth-context";
+import { useContacts } from "@/hooks/api/use-contacts";
+import { useUserPosts } from "@/hooks/api/use-posts";
+import { useUpdateProfile, useUserProfile } from "@/hooks/api/use-profile";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { uploadImage } from "@/lib/api/upload-service";
+import { Ionicons } from "@expo/vector-icons";
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
+import * as ImagePicker from "expo-image-picker";
+import { router } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Image,
-  RefreshControl,
+  ActionSheetIOS,
   ActivityIndicator,
   Alert,
-  Modal,
   Dimensions,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
   TextInput,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors, Spacing, BorderRadius, Shadows } from '@/constants/theme';
-import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '@/contexts/auth-context';
-import { useUserProfile, useUpdateProfile } from '@/hooks/api/use-profile';
-import { useUserPosts } from '@/hooks/api/use-posts';
-import { useContacts } from '@/hooks/api/use-contacts';
-import { router } from 'expo-router';
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
-import * as ImagePicker from 'expo-image-picker';
-import { uploadImage } from '@/lib/api/upload-service';
-import { Platform, ActionSheetIOS } from 'react-native';
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
 dayjs.extend(relativeTime);
-const { width } = Dimensions.get('window');
+const { width } = Dimensions.get("window");
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
+  const colors = Colors[colorScheme ?? "light"];
   const { data: profile, isLoading, refetch } = useUserProfile();
   const { data: postsData } = useUserPosts(user?.id || 0);
   const { data: friends } = useContacts();
   const updateProfile = useUpdateProfile();
-  const [activeTab, setActiveTab] = useState<'Activity' | 'Post' | 'Tagged' | 'Media'>('Activity');
+  const [activeTab, setActiveTab] = useState<"Activity" | "Post" | "Tagged">(
+    "Activity"
+  );
   const [showEditModal, setShowEditModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [editingField, setEditingField] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
-    displayName: '',
-    bio: '',
-    dateOfBirth: '',
-    gender: '',
+    displayName: "",
+    bio: "",
+    dateOfBirth: "",
+    gender: "",
   });
   useEffect(() => {
     if (profile) {
       setEditForm({
-        displayName: profile.displayName || '',
-        bio: profile.bio || '',
-        dateOfBirth: profile.dateOfBirth || '',
-        gender: profile.gender || '',
+        displayName: profile.displayName || "",
+        bio: profile.bio || "",
+        dateOfBirth: profile.dateOfBirth || "",
+        gender: profile.gender || "",
       });
     }
   }, [profile]);
   const handleSignOut = async () => {
-    Alert.alert('Đăng xuất', 'Bạn có chắc chắn muốn đăng xuất?', [
-      { text: 'Hủy', style: 'cancel' },
+    Alert.alert("Đăng xuất", "Bạn có chắc chắn muốn đăng xuất?", [
+      { text: "Hủy", style: "cancel" },
       {
-        text: 'Đăng xuất',
-        style: 'destructive',
+        text: "Đăng xuất",
+        style: "destructive",
         onPress: async () => {
           try {
             await signOut();
-            router.replace('/(auth)/intro-1');
+            router.replace("/(auth)/intro-1");
           } catch (error) {
-            router.replace('/(auth)/login');
+            router.replace("/(auth)/login");
           }
         },
       },
@@ -78,61 +84,99 @@ export default function ProfileScreen() {
     try {
       await updateProfile.mutateAsync(editForm);
       setShowEditModal(false);
+      setEditingField(null);
       refetch();
-      Alert.alert('Thành công', 'Cập nhật profile thành công');
+      Alert.alert("Thành công", "Cập nhật profile thành công");
     } catch (error) {
-      Alert.alert('Lỗi', 'Không thể cập nhật profile');
+      Alert.alert("Lỗi", "Không thể cập nhật profile");
     }
+  };
+
+  const openFieldEdit = (fieldName: string) => {
+    setEditingField(fieldName);
+    setShowEditModal(true);
+  };
+
+  const closeFieldEdit = () => {
+    setEditingField(null);
+    setShowEditModal(false);
+  };
+
+  const formatPhoneNumber = (phone: string) => {
+    if (!phone) return phone;
+    // Format: +84 863 995 285
+    const cleaned = phone.replace(/\D/g, "");
+    if (cleaned.startsWith("84")) {
+      return `+84 ${cleaned.slice(2, 5)} ${cleaned.slice(5, 8)} ${cleaned.slice(
+        8
+      )}`;
+    }
+    if (cleaned.startsWith("0")) {
+      return `+84 ${cleaned.slice(1, 4)} ${cleaned.slice(4, 7)} ${cleaned.slice(
+        7
+      )}`;
+    }
+    return phone;
   };
   const handlePickImage = async () => {
     try {
       // Show action sheet to choose between camera and library
-      if (Platform.OS === 'ios') {
+      if (Platform.OS === "ios") {
         ActionSheetIOS.showActionSheetWithOptions(
           {
-            options: ['Hủy', 'Chụp ảnh', 'Chọn từ thư viện'],
+            options: ["Hủy", "Chụp ảnh", "Chọn từ thư viện"],
             cancelButtonIndex: 0,
           },
           async (buttonIndex) => {
             if (buttonIndex === 1) {
               // Camera
-              await pickAndUploadImage('camera');
+              await pickAndUploadImage("camera");
             } else if (buttonIndex === 2) {
               // Library
-              await pickAndUploadImage('library');
+              await pickAndUploadImage("library");
             }
           }
         );
       } else {
         // Android: Show Alert with options
         Alert.alert(
-          'Chọn ảnh đại diện',
-          '',
+          "Chọn ảnh đại diện",
+          "",
           [
-            { text: 'Hủy', style: 'cancel' },
-            { text: 'Chụp ảnh', onPress: () => pickAndUploadImage('camera') },
-            { text: 'Chọn từ thư viện', onPress: () => pickAndUploadImage('library') },
+            { text: "Hủy", style: "cancel" },
+            { text: "Chụp ảnh", onPress: () => pickAndUploadImage("camera") },
+            {
+              text: "Chọn từ thư viện",
+              onPress: () => pickAndUploadImage("library"),
+            },
           ],
           { cancelable: true }
         );
       }
     } catch (error) {}
   };
-  const pickAndUploadImage = async (source: 'camera' | 'library') => {
+  const pickAndUploadImage = async (source: "camera" | "library") => {
     try {
       setUploading(true);
       // Request permissions
-      if (source === 'camera') {
+      if (source === "camera") {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert('Cần quyền truy cập', 'Vui lòng cấp quyền truy cập camera');
+        if (status !== "granted") {
+          Alert.alert(
+            "Cần quyền truy cập",
+            "Vui lòng cấp quyền truy cập camera"
+          );
           setUploading(false);
           return;
         }
       } else {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert('Cần quyền truy cập', 'Vui lòng cấp quyền truy cập thư viện ảnh');
+        const { status } =
+          await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== "granted") {
+          Alert.alert(
+            "Cần quyền truy cập",
+            "Vui lòng cấp quyền truy cập thư viện ảnh"
+          );
           setUploading(false);
           return;
         }
@@ -145,7 +189,7 @@ export default function ProfileScreen() {
         quality: 0.8,
       };
       let result: ImagePicker.ImagePickerResult;
-      if (source === 'camera') {
+      if (source === "camera") {
         result = await ImagePicker.launchCameraAsync(pickerOptions);
       } else {
         result = await ImagePicker.launchImageLibraryAsync(pickerOptions);
@@ -159,22 +203,23 @@ export default function ProfileScreen() {
       const uploadResult = await uploadImage({
         uri: asset.uri,
         name: asset.fileName || `avatar_${Date.now()}.jpg`,
-        type: asset.mimeType || 'image/jpeg',
+        type: asset.mimeType || "image/jpeg",
       });
       await updateProfile.mutateAsync({
         avatarUrl: uploadResult.fileUrl,
       });
       // Refresh profile data
       await refetch();
-      Alert.alert('Thành công', 'Đã cập nhật ảnh đại diện');
-    } catch (error: any) {Alert.alert('Lỗi', error.message || 'Không thể cập nhật ảnh đại diện');
+      Alert.alert("Thành công", "Đã cập nhật ảnh đại diện");
+    } catch (error: any) {
+      Alert.alert("Lỗi", error.message || "Không thể cập nhật ảnh đại diện");
     } finally {
       setUploading(false);
     }
   };
   const formatNumber = (num: number) => {
     if (num >= 1000) {
-      return (num / 1000).toFixed(1).replace('.', ',') + 'K';
+      return (num / 1000).toFixed(1).replace(".", ",") + "K";
     }
     return num.toString();
   };
@@ -195,33 +240,33 @@ export default function ProfileScreen() {
     return !post.isHidden; // Hide posts from other users that are marked as hidden
   });
   const postCount = posts.length; // Use filtered count
-  const followersCount = 2800; // Mock data - có thể thay bằng API sau
-  const followingCount = friends?.length || 892;
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={[]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.headerButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={20} color="#000000" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>
-          {user?.username || profile?.username || 'username'}
-        </Text>
-        <TouchableOpacity style={styles.headerButton} onPress={() => setShowSettingsModal(true)}>
+        <Text style={styles.headerTitle}>Hồ sơ</Text>
+        <TouchableOpacity
+          style={styles.headerButton}
+          onPress={() => setShowSettingsModal(true)}
+        >
           <Ionicons name="ellipsis-vertical" size={20} color="#000000" />
         </TouchableOpacity>
       </View>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} />}>
+        refreshControl={
+          <RefreshControl refreshing={false} onRefresh={refetch} />
+        }
+      >
         {/* Profile Info Card */}
         <View style={styles.profileCard}>
-          {/* Avatar and Stats */}
+          {/* Avatar and Info */}
           <View style={styles.profileHeader}>
-            <TouchableOpacity 
-              onPress={handlePickImage} 
+            <TouchableOpacity
+              onPress={handlePickImage}
               disabled={uploading}
-              style={styles.avatarContainer}>
+              style={styles.avatarContainer}
+            >
               {uploading ? (
                 <View style={styles.avatar}>
                   <ActivityIndicator size="small" color={colors.primary} />
@@ -230,7 +275,10 @@ export default function ProfileScreen() {
                 <>
                   <Image
                     source={{
-                      uri: profile?.avatarUrl || user?.avatarUrl || 'https://i.pravatar.cc/150',
+                      uri:
+                        profile?.avatarUrl ||
+                        user?.avatarUrl ||
+                        "https://i.pravatar.cc/150",
                     }}
                     style={styles.avatar}
                   />
@@ -240,71 +288,164 @@ export default function ProfileScreen() {
                 </>
               )}
             </TouchableOpacity>
-            <View style={styles.statsContainer}>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{postCount}</Text>
-                <Text style={styles.statLabel}>Bài viết</Text>
+            <View style={styles.profileInfo}>
+              <TouchableOpacity
+                style={styles.nameEditContainer}
+                onPress={() => openFieldEdit("displayName")}
+              >
+                <Text style={styles.name}>
+                  {profile?.displayName || user?.displayName || "Chưa có tên"}
+                </Text>
+                <Ionicons name="pencil" size={16} color="#666666" />
+              </TouchableOpacity>
+              <View style={styles.usernameRow}>
+                <Text style={styles.username}>
+                  @{user?.username || profile?.username || "username"}
+                </Text>
+                {profile?.isPhoneVerified && (
+                  <View style={styles.verifiedBadgeInline}>
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={14}
+                      color="#4CAF50"
+                    />
+                  </View>
+                )}
               </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{formatNumber(followersCount)}</Text>
-                <Text style={styles.statLabel}>Người theo dõi</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{followingCount}</Text>
-                <Text style={styles.statLabel}>Đang theo dõi</Text>
-              </View>
+              {/* Role and Updated Badge */}
+              {(profile?.role || profile?.updatedAt) && (
+                <View style={styles.metaInfoBadge}>
+                  {profile?.role && (
+                    <Text style={styles.metaInfoText}>
+                      {profile.role === "ADMIN" ? "Admin" : "User"}
+                    </Text>
+                  )}
+                  {profile?.role && profile?.updatedAt && (
+                    <Text style={styles.metaInfoSeparator}> | </Text>
+                  )}
+                  {profile?.updatedAt && (
+                    <Text style={styles.metaInfoText}>
+                      cập nhật {dayjs(profile.updatedAt).fromNow()}
+                    </Text>
+                  )}
+                </View>
+              )}
             </View>
           </View>
-          {/* Name and Bio */}
-          <Text style={styles.name}>
-            {profile?.displayName || user?.displayName || 'Chưa có tên'}
-          </Text>
-          {profile?.bio && (
-            <Text style={styles.bio}>{profile.bio}</Text>
-          )}
-          {/* Action Buttons */}
-          <View style={styles.actionButtons}>
-            <TouchableOpacity style={styles.actionButton} onPress={() => setShowEditModal(true)}>
-              <Text style={styles.actionButtonText}>Chỉnh sửa hồ sơ</Text>
+
+          {/* Editable Profile Fields */}
+          <View style={styles.editableFieldsSection}>
+            {/* Bio */}
+            <TouchableOpacity
+              style={styles.editableField}
+              onPress={() => openFieldEdit("bio")}
+            >
+              <View style={styles.fieldContent}>
+                <Text style={styles.fieldLabel}>Giới thiệu</Text>
+                <Text style={styles.fieldValue} numberOfLines={2}>
+                  {profile?.bio || "Chưa có giới thiệu"}
+                </Text>
+              </View>
+              <Ionicons name="pencil" size={18} color="#666666" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton}>
-              <Text style={styles.actionButtonText}>Chia sẻ hồ sơ</Text>
+
+            {/* Phone Number */}
+            {profile?.phoneNumber && (
+              <View style={styles.editableField}>
+                <View style={styles.fieldContent}>
+                  <Text style={styles.fieldLabel}>Số điện thoại</Text>
+                  <Text style={styles.fieldValue}>
+                    {formatPhoneNumber(profile.phoneNumber)}
+                  </Text>
+                </View>
+                {profile.isPhoneVerified && (
+                  <View style={styles.verifiedBadge}>
+                    <Text style={styles.verifiedText}>Đã xác thực</Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* Date of Birth */}
+            <TouchableOpacity
+              style={styles.editableField}
+              onPress={() => openFieldEdit("dateOfBirth")}
+            >
+              <View style={styles.fieldContent}>
+                <Text style={styles.fieldLabel}>Ngày sinh</Text>
+                <Text style={styles.fieldValue}>
+                  {profile?.dateOfBirth
+                    ? dayjs(profile.dateOfBirth).format("DD/MM/YYYY")
+                    : "Chưa cập nhật"}
+                </Text>
+              </View>
+              <Ionicons name="pencil" size={18} color="#666666" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionIconButton}>
-              <Ionicons name="person-add-outline" size={20} color="#000000" />
+
+            {/* Gender */}
+            <TouchableOpacity
+              style={styles.editableField}
+              onPress={() => openFieldEdit("gender")}
+            >
+              <View style={styles.fieldContent}>
+                <Text style={styles.fieldLabel}>Giới tính</Text>
+                <Text style={styles.fieldValue}>
+                  {profile?.gender || "Chưa cập nhật"}
+                </Text>
+              </View>
+              <Ionicons name="pencil" size={18} color="#666666" />
             </TouchableOpacity>
+
+            {/* Account Created Date */}
+            {profile?.createdAt && (
+              <View style={styles.editableField}>
+                <View style={styles.fieldContent}>
+                  <Text style={styles.fieldLabel}>Tham gia</Text>
+                  <Text style={styles.fieldValue}>
+                    {dayjs(profile.createdAt).format("DD/MM/YYYY")}
+                  </Text>
+                </View>
+              </View>
+            )}
           </View>
+
+          {/* Blocked Status Banner */}
+          {profile?.isBlocked && (
+            <View style={styles.blockedBanner}>
+              <Ionicons name="ban" size={18} color="#FF3B30" />
+              <Text style={styles.blockedText}>Tài khoản đã bị chặn</Text>
+            </View>
+          )}
         </View>
         {/* Tabs */}
         <View style={styles.tabsContainer}>
-          {(['Activity', 'Post', 'Tagged', 'Media'] as const).map((tab) => {
+          {(["Activity", "Post", "Tagged"] as const).map((tab) => {
             const tabLabels: Record<string, string> = {
-              'Activity': 'Hoạt động',
-              'Post': 'Bài viết',
-              'Tagged': 'Đã gắn thẻ',
-              'Media': 'Phương tiện',
+              Activity: "Hoạt động",
+              Post: "Bài viết",
+              Tagged: "Đã gắn thẻ",
             };
             return (
               <TouchableOpacity
                 key={tab}
-                style={[
-                  styles.tab,
-                  activeTab === tab && styles.activeTab,
-                ]}
-                onPress={() => setActiveTab(tab)}>
+                style={[styles.tab, activeTab === tab && styles.activeTab]}
+                onPress={() => setActiveTab(tab)}
+              >
                 <Text
                   style={[
                     styles.tabText,
                     activeTab === tab && styles.activeTabText,
-                  ]}>
+                  ]}
+                >
                   {tabLabels[tab] || tab}
+                  {tab === "Post" && ` · ${postCount}`}
                 </Text>
               </TouchableOpacity>
             );
           })}
         </View>
         {/* Posts Feed */}
-        {activeTab === 'Post' && (
+        {activeTab === "Post" && (
           <View style={styles.postsContainer}>
             {posts.length > 0 ? (
               posts.map((post) => (
@@ -314,13 +455,15 @@ export default function ProfileScreen() {
                     <View style={styles.postAuthor}>
                       <Image
                         source={{
-                          uri: post.authorAvatar || 'https://i.pravatar.cc/150',
+                          uri: post.authorAvatar || "https://i.pravatar.cc/150",
                         }}
                         style={styles.postAvatar}
                       />
                       <View style={styles.postAuthorInfo}>
                         <Text style={styles.postAuthorName}>
-                          {post.authorName || profile?.displayName || 'Người dùng'}
+                          {post.authorName ||
+                            profile?.displayName ||
+                            "Người dùng"}
                         </Text>
                         <Text style={styles.postTime}>
                           {dayjs(post.createdAt).fromNow()}
@@ -328,7 +471,11 @@ export default function ProfileScreen() {
                       </View>
                     </View>
                     <TouchableOpacity>
-                      <Ionicons name="ellipsis-vertical" size={20} color="#000000" />
+                      <Ionicons
+                        name="ellipsis-vertical"
+                        size={20}
+                        color="#000000"
+                      />
                     </TouchableOpacity>
                   </View>
                   {/* Post Content */}
@@ -348,31 +495,57 @@ export default function ProfileScreen() {
                     <View style={styles.engagementItem}>
                       <Ionicons name="heart" size={20} color="#FF3040" />
                       <Text style={styles.engagementCount}>
-                        {post.reactionCount > 0 ? formatNumber(post.reactionCount) : '0'}
+                        {post.reactionCount > 0
+                          ? formatNumber(post.reactionCount)
+                          : "0"}
                       </Text>
                     </View>
                     <View style={styles.engagementItem}>
-                      <Ionicons name="chatbubble-outline" size={20} color="#666666" />
+                      <Ionicons
+                        name="chatbubble-outline"
+                        size={20}
+                        color="#666666"
+                      />
                       <Text style={styles.engagementCount}>
-                        {post.commentCount > 0 ? formatNumber(post.commentCount) : '0'}
+                        {post.commentCount > 0
+                          ? formatNumber(post.commentCount)
+                          : "0"}
                       </Text>
                     </View>
                     <View style={styles.engagementItem}>
-                      <Ionicons name="paper-plane-outline" size={20} color="#666666" />
+                      <Ionicons
+                        name="paper-plane-outline"
+                        size={20}
+                        color="#666666"
+                      />
                       <Text style={styles.engagementCount}>
-                        {post.shareCount > 0 ? formatNumber(post.shareCount) : '0'}
+                        {post.shareCount && post.shareCount > 0
+                          ? formatNumber(post.shareCount)
+                          : "0"}
                       </Text>
                     </View>
                     <View style={styles.engagementItem}>
-                      <Ionicons name="repeat-outline" size={20} color="#666666" />
+                      <Ionicons
+                        name="repeat-outline"
+                        size={20}
+                        color="#666666"
+                      />
                       <Text style={styles.engagementCount}>
-                        {post.repostCount > 0 ? formatNumber(post.repostCount) : '0'}
+                        {post.repostCount && post.repostCount > 0
+                          ? formatNumber(post.repostCount)
+                          : "0"}
                       </Text>
                     </View>
                     <View style={styles.engagementItem}>
-                      <Ionicons name="bookmark-outline" size={20} color="#666666" />
+                      <Ionicons
+                        name="bookmark-outline"
+                        size={20}
+                        color="#666666"
+                      />
                       <Text style={styles.engagementCount}>
-                        {post.bookmarkCount > 0 ? formatNumber(post.bookmarkCount) : '0'}
+                        {post.bookmarkCount && post.bookmarkCount > 0
+                          ? formatNumber(post.bookmarkCount)
+                          : "0"}
                       </Text>
                     </View>
                   </View>
@@ -387,108 +560,145 @@ export default function ProfileScreen() {
           </View>
         )}
         {/* Activity Tab - Empty state for now */}
-        {activeTab === 'Activity' && (
+        {activeTab === "Activity" && (
           <View style={styles.emptyState}>
             <Ionicons name="pulse-outline" size={64} color="#CCCCCC" />
             <Text style={styles.emptyText}>Chưa có hoạt động nào</Text>
           </View>
         )}
         {/* Tagged Tab - Empty state for now */}
-        {activeTab === 'Tagged' && (
+        {activeTab === "Tagged" && (
           <View style={styles.emptyState}>
             <Ionicons name="person-outline" size={64} color="#CCCCCC" />
             <Text style={styles.emptyText}>Chưa có bài viết được tag</Text>
           </View>
         )}
-        {/* Media Tab - Empty state for now */}
-        {activeTab === 'Media' && (
-          <View style={styles.emptyState}>
-            <Ionicons name="images-outline" size={64} color="#CCCCCC" />
-            <Text style={styles.emptyText}>Chưa có media nào</Text>
-          </View>
-        )}
       </ScrollView>
-      {/* Edit Profile Modal */}
+      {/* Edit Field Modal */}
       <Modal visible={showEditModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Chỉnh sửa profile</Text>
-              <TouchableOpacity onPress={() => setShowEditModal(false)}>
-                <Ionicons name="close" size={24} color="#000000" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.modalBody}>
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Tên hiển thị</Text>
-                <TextInput
-                  style={styles.input}
-                  value={editForm.displayName}
-                  onChangeText={(text) => setEditForm({ ...editForm, displayName: text })}
-                  placeholder="Nhập tên hiển thị"
-                />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalOverlay}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            style={styles.modalOverlay}
+            onPress={closeFieldEdit}
+          >
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={(e) => e.stopPropagation()}
+              style={styles.modalContentSmall}
+            >
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>
+                  Chỉnh sửa{" "}
+                  {editingField === "displayName"
+                    ? "tên hiển thị"
+                    : editingField === "bio"
+                    ? "giới thiệu"
+                    : editingField === "dateOfBirth"
+                    ? "ngày sinh"
+                    : editingField === "gender"
+                    ? "giới tính"
+                    : ""}
+                </Text>
+                <TouchableOpacity onPress={closeFieldEdit}>
+                  <Ionicons name="close" size={24} color="#000000" />
+                </TouchableOpacity>
               </View>
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Giới thiệu</Text>
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  value={editForm.bio}
-                  onChangeText={(text) => setEditForm({ ...editForm, bio: text })}
-                  placeholder="Nhập giới thiệu"
-                  multiline
-                  numberOfLines={4}
-                  textAlignVertical="top"
-                />
-              </View>
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Ngày sinh</Text>
-                <TextInput
-                  style={styles.input}
-                  value={editForm.dateOfBirth}
-                  onChangeText={(text) => setEditForm({ ...editForm, dateOfBirth: text })}
-                  placeholder="YYYY-MM-DD"
-                />
-              </View>
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Giới tính</Text>
-                <TextInput
-                  style={styles.input}
-                  value={editForm.gender}
-                  onChangeText={(text) => setEditForm({ ...editForm, gender: text })}
-                  placeholder="Nam/Nữ/Khác"
-                />
-              </View>
-            </ScrollView>
-            <View style={styles.modalFooter}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonCancel]}
-                onPress={() => setShowEditModal(false)}>
-                <Text style={styles.modalButtonCancelText}>Hủy</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonSave]}
-                onPress={handleUpdateProfile}
-                disabled={updateProfile.isPending}>
-                {updateProfile.isPending ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.modalButtonSaveText}>Lưu</Text>
+              <View style={styles.modalBody}>
+                {editingField === "displayName" && (
+                  <View style={styles.inputContainer}>
+                    <TextInput
+                      style={styles.input}
+                      value={editForm.displayName}
+                      onChangeText={(text) =>
+                        setEditForm({ ...editForm, displayName: text })
+                      }
+                      placeholder="Nhập tên hiển thị"
+                      autoFocus
+                    />
+                  </View>
                 )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+                {editingField === "bio" && (
+                  <View style={styles.inputContainer}>
+                    <TextInput
+                      style={[styles.input, styles.textArea]}
+                      value={editForm.bio}
+                      onChangeText={(text) =>
+                        setEditForm({ ...editForm, bio: text })
+                      }
+                      placeholder="Nhập giới thiệu"
+                      multiline
+                      numberOfLines={4}
+                      textAlignVertical="top"
+                      autoFocus
+                    />
+                  </View>
+                )}
+                {editingField === "dateOfBirth" && (
+                  <View style={styles.inputContainer}>
+                    <TextInput
+                      style={styles.input}
+                      value={editForm.dateOfBirth}
+                      onChangeText={(text) =>
+                        setEditForm({ ...editForm, dateOfBirth: text })
+                      }
+                      placeholder="YYYY-MM-DD"
+                      autoFocus
+                    />
+                  </View>
+                )}
+                {editingField === "gender" && (
+                  <View style={styles.inputContainer}>
+                    <TextInput
+                      style={styles.input}
+                      value={editForm.gender}
+                      onChangeText={(text) =>
+                        setEditForm({ ...editForm, gender: text })
+                      }
+                      placeholder="Nam/Nữ/Khác"
+                      autoFocus
+                    />
+                  </View>
+                )}
+              </View>
+              <View style={styles.modalFooter}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalButtonCancel]}
+                  onPress={closeFieldEdit}
+                >
+                  <Text style={styles.modalButtonCancelText}>Hủy</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalButtonSave]}
+                  onPress={handleUpdateProfile}
+                  disabled={updateProfile.isPending}
+                >
+                  {updateProfile.isPending ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.modalButtonSaveText}>Lưu</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
       </Modal>
       {/* Settings Modal */}
       <Modal visible={showSettingsModal} animationType="slide" transparent>
         <TouchableOpacity
           style={styles.modalOverlay}
           activeOpacity={1}
-          onPress={() => setShowSettingsModal(false)}>
+          onPress={() => setShowSettingsModal(false)}
+        >
           <TouchableOpacity
             activeOpacity={1}
             onPress={(e) => e.stopPropagation()}
-            style={styles.settingsModalContent}>
+            style={styles.settingsModalContent}
+          >
             {/* Drag Handle */}
             <View style={styles.dragHandle} />
             {/* Settings Options */}
@@ -496,11 +706,18 @@ export default function ProfileScreen() {
               style={styles.settingsOption}
               onPress={() => {
                 setShowSettingsModal(false);
-                router.push('/(tabs)/privacy-settings' as any);
-              }}>
+                router.push("/(tabs)/privacy-settings" as any);
+              }}
+            >
               <View style={styles.settingsOptionLeft}>
-                <Ionicons name="lock-closed-outline" size={24} color="#000000" />
-                <Text style={styles.settingsOptionText}>Cài đặt quyền riêng tư</Text>
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={24}
+                  color="#000000"
+                />
+                <Text style={styles.settingsOptionText}>
+                  Cài đặt quyền riêng tư
+                </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#CCCCCC" />
             </TouchableOpacity>
@@ -508,11 +725,18 @@ export default function ProfileScreen() {
               style={styles.settingsOption}
               onPress={() => {
                 setShowSettingsModal(false);
-                router.push('/(tabs)/blocked-users' as any);
-              }}>
+                router.push("/(tabs)/blocked-users" as any);
+              }}
+            >
               <View style={styles.settingsOptionLeft}>
-                <Ionicons name="person-remove-outline" size={24} color="#000000" />
-                <Text style={styles.settingsOptionText}>Người dùng đã chặn</Text>
+                <Ionicons
+                  name="person-remove-outline"
+                  size={24}
+                  color="#000000"
+                />
+                <Text style={styles.settingsOptionText}>
+                  Người dùng đã chặn
+                </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#CCCCCC" />
             </TouchableOpacity>
@@ -522,10 +746,16 @@ export default function ProfileScreen() {
               onPress={() => {
                 setShowSettingsModal(false);
                 handleSignOut();
-              }}>
+              }}
+            >
               <View style={styles.settingsOptionLeft}>
                 <Ionicons name="log-out-outline" size={24} color="#FF3B30" />
-                <Text style={[styles.settingsOptionText, styles.settingsOptionTextDanger]}>
+                <Text
+                  style={[
+                    styles.settingsOptionText,
+                    styles.settingsOptionTextDanger,
+                  ]}
+                >
                   Đăng xuất
                 </Text>
               </View>
@@ -539,160 +769,182 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#F6F6F6",
   },
   center: {
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    backgroundColor: '#E8F4FD',
+    paddingVertical: Spacing.md,
+    backgroundColor: "#FFFFFF",
   },
   headerButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#D0D0D0',
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F6F6F6",
+    justifyContent: "center",
+    alignItems: "center",
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#000000',
+    fontWeight: "700",
+    color: "#000000",
+    flex: 1,
   },
   profileCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: Spacing.md,
-    margin: Spacing.md,
-    marginBottom: 0,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: Spacing.sm,
+    margin: Spacing.sm,
+    marginVertical: Spacing.md,
   },
   profileHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "flex-start",
     marginBottom: Spacing.md,
+    paddingBottom: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
   },
   avatarContainer: {
-    position: 'relative',
+    position: "relative",
+    marginRight: Spacing.md,
+  },
+  profileInfo: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  nameEditContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 4,
+  },
+  usernameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   avatar: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#f0f0f0",
+    justifyContent: "center",
+    alignItems: "center",
   },
   avatarOverlay: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     right: 0,
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#000',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  statsContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginLeft: Spacing.lg,
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#000000',
-  },
-  statLabel: {
-    fontSize: 13,
-    color: '#666666',
-    marginTop: 4,
+    backgroundColor: "#2A898B",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 3,
+    borderColor: "#fff",
   },
   name: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#000000',
-    marginBottom: Spacing.xs,
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#000000",
+    marginBottom: 4,
   },
-  bio: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: '#000000',
-    marginBottom: Spacing.md,
+  username: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#666666",
   },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginTop: Spacing.md,
+  verifiedBadgeInline: {
+    width: 16,
+    height: 16,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  actionButton: {
-    flex: 1,
+  metaInfoBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: "#F0F0F0",
+    borderRadius: 12,
+    alignSelf: "flex-start",
+  },
+  metaInfoText: {
+    fontSize: 10,
+    fontWeight: "500",
+    color: "#999999",
+  },
+  metaInfoSeparator: {
+    fontSize: 10,
+    color: "#CCCCCC",
+  },
+  editableFieldsSection: {
+    marginTop: 0,
+    gap: Spacing.xs,
+  },
+  editableField: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+    paddingHorizontal: Spacing.sm,
+    backgroundColor: "#F9F9F9",
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#E5E5E5',
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderColor: "#F0F0F0",
   },
-  actionButtonText: {
+  fieldContent: {
+    flex: 1,
+    gap: 3,
+  },
+  fieldLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#999999",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  fieldValue: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#000000',
-  },
-  actionIconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E5E5',
-    justifyContent: 'center',
-    alignItems: 'center',
+    fontWeight: "500",
+    color: "#000000",
   },
   tabsContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    gap: Spacing.sm,
+    paddingVertical: Spacing.xs + 4,
+    gap: 6,
+    backgroundColor: "#FFFFFF",
+    marginBottom: Spacing.sm,
   },
   tab: {
     flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
     borderRadius: 20,
-    alignItems: 'center',
+    alignItems: "center",
   },
   activeTab: {
-    backgroundColor: '#000000',
+    backgroundColor: "#2A898B",
   },
   tabText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#999999',
+    fontSize: 11,
+    fontWeight: "500",
+    color: "#999999",
   },
   activeTabText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+    color: "#FFFFFF",
+    fontWeight: "600",
   },
   postsContainer: {
     paddingHorizontal: Spacing.md,
@@ -700,25 +952,25 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xl,
   },
   postCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
     marginBottom: Spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-    overflow: 'hidden',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+    overflow: "hidden",
   },
   postHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     padding: Spacing.md,
   },
   postAuthor: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
   },
   postAvatar: {
@@ -731,147 +983,140 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   postAuthorName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000000',
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#000000",
   },
   postTime: {
-    fontSize: 13,
-    color: '#999999',
+    fontSize: 12,
+    color: "#999999",
     marginTop: 2,
   },
   postContent: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: '#000000',
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#000000",
     paddingHorizontal: Spacing.md,
     marginBottom: Spacing.md,
   },
   postImage: {
-    width: '100%',
+    width: "100%",
     height: width * 0.9,
-    backgroundColor: '#F0F0F0',
+    backgroundColor: "#F0F0F0",
   },
   postEngagement: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
+    borderTopColor: "#F0F0F0",
   },
   engagementItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
   },
   engagementCount: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#000000',
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#000000",
   },
   emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: Spacing.xl * 2,
   },
   emptyText: {
-    fontSize: 16,
-    color: '#999999',
+    fontSize: 14,
+    color: "#999999",
     marginTop: Spacing.md,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
   },
-  modalContent: {
-    backgroundColor: '#FFFFFF',
+  modalContentSmall: {
+    backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '90%',
     paddingTop: Spacing.md,
   },
   modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
+    borderBottomColor: "#E5E5EA",
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#000000',
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#000000",
   },
   modalBody: {
-    maxHeight: 400,
     paddingHorizontal: Spacing.md,
     paddingTop: Spacing.md,
+    paddingBottom: Spacing.sm,
   },
   inputContainer: {
-    marginBottom: Spacing.md,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#000000',
-    marginBottom: Spacing.xs,
+    marginBottom: 0,
   },
   input: {
-    fontSize: 15,
-    color: '#000000',
-    paddingVertical: Spacing.sm,
+    fontSize: 14,
+    color: "#000000",
+    paddingVertical: 10,
     paddingHorizontal: Spacing.md,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 8,
+    backgroundColor: "#F6F6F6",
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E5E5',
+    borderColor: "#E5E5E5",
   },
   textArea: {
-    minHeight: 100,
-    paddingTop: Spacing.md,
+    minHeight: 90,
+    paddingTop: 10,
   },
   modalFooter: {
-    flexDirection: 'row',
-    gap: Spacing.md,
+    flexDirection: "row",
+    gap: Spacing.sm,
     paddingHorizontal: Spacing.md,
     paddingTop: Spacing.md,
     paddingBottom: Spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#E5E5EA',
+    borderTopColor: "#E5E5EA",
   },
   modalButton: {
     flex: 1,
-    paddingVertical: Spacing.md,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: 11,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
   },
   modalButtonCancel: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: '#E5E5E5',
+    borderColor: "#E5E5E5",
   },
   modalButtonCancelText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000000',
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#000000",
   },
   modalButtonSave: {
-    backgroundColor: '#000000',
+    backgroundColor: "#2A898B",
   },
   modalButtonSaveText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
   // Settings Modal Styles
   settingsModalContent: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingTop: 8,
@@ -881,35 +1126,97 @@ const styles = StyleSheet.create({
   dragHandle: {
     width: 40,
     height: 4,
-    backgroundColor: '#CCCCCC',
+    backgroundColor: "#CCCCCC",
     borderRadius: 2,
-    alignSelf: 'center',
+    alignSelf: "center",
     marginBottom: Spacing.md,
   },
   settingsOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.sm,
   },
   settingsOptionLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: Spacing.md,
     flex: 1,
   },
   settingsOptionText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#000000',
+    fontSize: 15,
+    fontWeight: "500",
+    color: "#000000",
   },
   settingsOptionTextDanger: {
-    color: '#FF3B30',
+    color: "#FF3B30",
   },
   settingsDivider: {
     height: 1,
-    backgroundColor: '#E5E5EA',
+    backgroundColor: "#E5E5EA",
     marginVertical: Spacing.sm,
+  },
+  // Profile Info Styles
+  verifiedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#E8F5E9",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  verifiedText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#4CAF50",
+  },
+  adminBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#FFF9E6",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#FFD700",
+  },
+  adminBadgeText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#FF8C00",
+  },
+  userBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#F5F5F5",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  userBadgeText: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#666666",
+  },
+  blockedBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    backgroundColor: "#FFEBEE",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#FF3B30",
+    marginTop: Spacing.sm,
+  },
+  blockedText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#FF3B30",
+    flex: 1,
   },
 });

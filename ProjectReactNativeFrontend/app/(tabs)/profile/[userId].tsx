@@ -68,23 +68,23 @@ function PostCard({ post }: { post: any }) {
         </View>
       )}
       <View style={styles.postStats}>
-        <View style={styles.statItem}>
+        <View style={styles.postStatItem}>
           <Ionicons name="heart-outline" size={16} color="#666" />
           <Text style={styles.statText}>{formatNumber(post.reactionCount || 0)}</Text>
         </View>
-        <View style={styles.statItem}>
+        <View style={styles.postStatItem}>
           <Ionicons name="chatbubble-outline" size={16} color="#666" />
           <Text style={styles.statText}>{formatNumber(post.commentCount || 0)}</Text>
         </View>
-        <View style={styles.statItem}>
+        <View style={styles.postStatItem}>
           <Ionicons name="paper-plane-outline" size={16} color="#666" />
           <Text style={styles.statText}>{formatNumber(post.shareCount || 0)}</Text>
         </View>
-        <View style={styles.statItem}>
+        <View style={styles.postStatItem}>
           <Ionicons name="repeat-outline" size={16} color="#666" />
           <Text style={styles.statText}>{formatNumber(post.repostCount || 0)}</Text>
         </View>
-        <View style={styles.statItem}>
+        <View style={styles.postStatItem}>
           <Ionicons name="bookmark-outline" size={16} color="#666" />
           <Text style={styles.statText}>{formatNumber(post.bookmarkCount || 0)}</Text>
         </View>
@@ -325,7 +325,7 @@ export default function UserProfileScreen() {
   };
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <SafeAreaView style={styles.safeArea} edges={[]}>
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -334,7 +334,7 @@ export default function UserProfileScreen() {
   }
   if (!profile) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <SafeAreaView style={styles.safeArea} edges={[]}>
         <View style={styles.centered}>
           <Text style={styles.errorText}>Không tìm thấy người dùng</Text>
           <TouchableOpacity onPress={() => router.back()}>
@@ -348,7 +348,7 @@ export default function UserProfileScreen() {
   const followersCount = 0; // TODO: Get from API
   const followingCount = 0; // TODO: Get from API
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: '#F5F5F5' }]} edges={['top']}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: '#F5F5F5' }]} edges={[]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
@@ -851,7 +851,7 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
     alignItems: 'center',
   },
-  statItem: {
+  postStatItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,

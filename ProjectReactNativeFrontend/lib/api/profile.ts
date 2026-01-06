@@ -1,15 +1,29 @@
 import { apiFetch } from './http-client';
 export interface UserProfileDto {
+  // Basic Info
   id: number;
   username: string;
   displayName: string;
   avatarUrl?: string | null;
+  
+  // Profile Details
   bio?: string | null;
   dateOfBirth?: string | null;
   gender?: string | null;
+  
+  // Contact Info
+  phoneNumber?: string | null;
+  isPhoneVerified?: boolean;
+  
+  // Status & Role
   status: 'ONLINE' | 'OFFLINE' | 'AWAY';
+  role?: 'USER' | 'ADMIN';
+  isBlocked?: boolean;
+  
+  // Timestamps
   lastSeen?: string | null;
   createdAt?: string;
+  updatedAt?: string;
 }
 export interface UpdateProfileRequest {
   displayName?: string;

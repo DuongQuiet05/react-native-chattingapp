@@ -10,6 +10,9 @@ export interface PostDto {
   location?: string | null;
   commentCount: number;
   reactionCount: number;
+  shareCount?: number;        // Optional - may not be implemented yet
+  repostCount?: number;       // Optional - may not be implemented yet
+  bookmarkCount?: number;     // Optional - may not be implemented yet
   userReaction?: string | null;
   isHidden?: boolean;
   createdAt: string;

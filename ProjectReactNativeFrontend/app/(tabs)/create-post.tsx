@@ -42,7 +42,7 @@ class CreatePostErrorBoundary extends Component<
   render() {
     if (this.state.hasError) {
       return (
-        <SafeAreaView style={styles.container} edges={['top']}>
+        <SafeAreaView style={styles.container} edges={[]}>
           <View style={styles.errorContainer}>
             <Ionicons name="alert-circle" size={64} color="#FF3B30" />
             <Text style={styles.errorText}>Đã xảy ra lỗi</Text>
@@ -280,7 +280,7 @@ function CreatePostScreenContent() {
     isPending: false,
   };
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: '#E8F4FD' }]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: '#E8F4FD' }]} edges={[]}>
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

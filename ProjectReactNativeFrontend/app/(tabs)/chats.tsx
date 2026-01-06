@@ -205,7 +205,7 @@ export default function ChatsScreen() {
   }, [connected, queryClient, subscribe, user, conversations]);
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.safeArea} edges={[]}>
         <View style={styles.centered}>
           <ActivityIndicator />
         </View>
@@ -214,7 +214,7 @@ export default function ChatsScreen() {
   }
   if (isError) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.safeArea} edges={[]}>
         <ThemedView style={styles.centered}>
           <ThemedText style={styles.error}>Không thể tải danh sách cuộc trò chuyện</ThemedText>
           <ThemedText onPress={() => void refetch()} style={styles.retry}>
@@ -225,7 +225,7 @@ export default function ChatsScreen() {
     );
   }
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.safeArea} edges={[]}>
       <ThemedView style={styles.container}>
         {/* Header */}
         <View style={styles.header}>

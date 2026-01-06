@@ -258,7 +258,7 @@ export default function SearchScreen() {
     return null;
   };
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.safeArea} edges={[]}>
       <View style={styles.container}>
         {/* Search Header */}
         <View style={styles.header}>

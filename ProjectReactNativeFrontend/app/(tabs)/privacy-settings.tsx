@@ -51,7 +51,7 @@ export default function PrivacySettingsScreen() {
   };
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.safeArea} edges={[]}>
         <View style={styles.centered}>
           <ActivityIndicator size="large" />
           <ThemedText style={styles.loadingText}>Đang tải...</ThemedText>
@@ -61,7 +61,7 @@ export default function PrivacySettingsScreen() {
   }
   if (!settings) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.safeArea} edges={[]}>
         <View style={styles.centered}>
           <Ionicons name="warning-outline" size={64} color="#ff9500" />
           <ThemedText style={styles.errorText}>Không thể tải cài đặt</ThemedText>
@@ -73,7 +73,7 @@ export default function PrivacySettingsScreen() {
     );
   }
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.safeArea} edges={[]}>
       <ThemedView style={styles.container}>
         {/* Header */}
         <View style={styles.header}>

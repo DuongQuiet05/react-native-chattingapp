@@ -118,12 +118,33 @@ public class AuthService {
      */
     @Transactional
     public AuthResponse login(LoginRequest request) {
-        // Authenticate user
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
-        );
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        // Try BCrypt authentication first
+        boolean authenticated = false;
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
+            );
+            authenticated = true;
+        } catch (Exception e) {
+            // If BCrypt authentication fails, check if password is plain text
+            if (user.getPasswordHash() != null && 
+                !user.getPasswordHash().startsWith("$2a$") && 
+                !user.getPasswordHash().startsWith("$2b$") && 
+                !user.getPasswordHash().startsWith("$2y$")) {
+                // Password is plain text, compare directly
+                if (request.getPassword().equals(user.getPasswordHash())) {
+                    authenticated = true;
+                }
+            }
+            
+            if (!authenticated) {
+                throw new RuntimeException("Invalid username or password");
+            }
+        }
+        
         // Check if user is blocked
         if (user.getIsBlocked() != null && user.getIsBlocked()) {
             throw new RuntimeException("Tài khoản của bạn đã bị khóa. Vui lòng liên hệ với ADMIN để được hỗ trợ.");

@@ -167,7 +167,7 @@ export default function NotificationsScreen() {
     return groups;
   }, [filteredNotifications]);
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.safeArea} edges={[]}>
       <View style={[styles.container, { backgroundColor: '#fff' }]}>
         {/* Header */}
         <View style={styles.header}>

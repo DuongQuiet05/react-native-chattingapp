@@ -161,7 +161,7 @@ export default function FriendRequestsScreen() {
     );
   }
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={[]}>
       <ThemedView style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
