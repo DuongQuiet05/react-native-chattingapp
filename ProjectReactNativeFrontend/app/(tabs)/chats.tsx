@@ -360,7 +360,7 @@ export default function ChatsScreen() {
             onPress={() => setCreateChatModalVisible(true)}
             activeOpacity={0.9}
           >
-            <Ionicons name="create-outline" size={24} color="#fff" />
+            <Ionicons name="people" size={24} color="#fff" />
           </TouchableOpacity>
         </View>
       </ThemedView>

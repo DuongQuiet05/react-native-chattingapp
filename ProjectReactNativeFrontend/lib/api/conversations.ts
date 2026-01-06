@@ -37,6 +37,7 @@ export interface ConversationSummary {
   lastMessageAt?: string;
   unreadCount?: number;
   participantStatus?: 'ONLINE' | 'OFFLINE' | 'AWAY'; // Status của participant (cho PRIVATE conversation)
+  otherUserId?: number; // ID của người chat cùng (cho PRIVATE conversation)
 }
 export interface ConversationParticipant {
   id: number;
@@ -77,6 +78,7 @@ function transformConversation(
     lastMessageAt: conv.lastMessage?.sentAt,
     unreadCount: 0, // Backend chưa có field này
     participantStatus,
+    otherUserId: conv.type === 'PRIVATE' ? conv.participants.find(p => p.id !== currentUserId)?.id : undefined,
   };
 }
 export async function fetchConversations(currentUserId?: number) {

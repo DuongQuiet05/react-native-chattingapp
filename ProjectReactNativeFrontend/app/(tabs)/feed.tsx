@@ -598,10 +598,6 @@ const styles = StyleSheet.create({
     color: "#000000",
     letterSpacing: 0.5,
   },
-  createButton: {
-    padding: Spacing.xs,
-    marginRight: 4,
-  },
   notificationButton: {
     position: "relative",
     padding: Spacing.xs,
