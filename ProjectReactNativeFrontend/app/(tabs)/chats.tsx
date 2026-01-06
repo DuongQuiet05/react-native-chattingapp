@@ -86,14 +86,13 @@ export default function ChatsScreen() {
       setLoadingFriends(true);
       getFriendsList()
         .then((friendsList) => {
-          // Handle empty list gracefully
           if (Array.isArray(friendsList)) {
             setFriends(friendsList.slice(0, 10)); // Get first 10 friends for stories
           } else {
             setFriends([]);
           }
         })
-        .catch((error) => {// Don't show alert, just set empty array
+        .catch((error) => {
           setFriends([]);
         })
         .finally(() => {
@@ -249,6 +248,7 @@ export default function ChatsScreen() {
           </View>
         </View>
         {/* Stories Section */}
+        {/* Stories Section (Circular) */}
         {friends.length > 0 && (
           <View style={styles.storiesContainer}>
             <ScrollView

@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFeed, useReactToPost, useRemovePostReaction } from '@/hooks/api/use-posts';
 import { useContacts } from '@/hooks/api/use-contacts';
 import { useUnreadCount } from '@/hooks/api/use-notifications';
+import { StoriesList } from '@/components/stories-list';
 import { useStories } from '@/hooks/api/use-stories';
 import { router } from 'expo-router';
 import dayjs from 'dayjs';
@@ -67,74 +68,7 @@ const communities = [
     ],
   },
 ];
-function StoryItem({ story, isFirst, userId }: { story?: StoryDto; isFirst: boolean; userId?: number }) {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
-  if (isFirst) {
-    return (
-      <TouchableOpacity
-        style={styles.storyItem}
-        onPress={() => router.push('/stories/create')}>
-        <View style={styles.addStoryCircle}>
-          <Ionicons name="add" size={20} color="#666666" />
-        </View>
-        <Text style={styles.storyName} numberOfLines={1}>
-          Thêm Story
-        </Text>
-      </TouchableOpacity>
-    );
-  }
-  if (!story) return null;
-  const hasUnviewedStories = !story.isViewed && !story.isOwn;
-  return (
-    <TouchableOpacity
-      style={styles.storyItem}
-      onPress={() => router.push(`/stories/${story.userId}`)}>
-      <View style={styles.storyCircleWrapper}>
-        {hasUnviewedStories && <View style={styles.storyRing} />}
-        <View style={[styles.storyCircle, { backgroundColor: colors.card }]}>
-          <Image
-            source={{ uri: story.avatarUrl || 'https://i.pravatar.cc/150' }}
-            style={styles.storyAvatar}
-          />
-        </View>
-      </View>
-      <Text style={[styles.storyName, { color: colors.text }]} numberOfLines={1}>
-        {story.displayName || story.username}
-      </Text>
-    </TouchableOpacity>
-  );
-}
-function StoriesSection() {
-  const { data: stories } = useStories();
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
-  const { user } = useAuth();
-  
-  const groupedStories = stories?.reduce((acc, story) => {
-    const userId = story.userId;
-    if (!acc[userId]) {
-      acc[userId] = story;
-    }
-    return acc;
-  }, {} as Record<number, StoryDto>) || {};
-  
-  const uniqueStories = Object.values(groupedStories);
-  
-  return (
-    <View style={styles.storiesContainer}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.storiesContent}>
-        <StoryItem story={undefined} isFirst={true} />
-        {uniqueStories.slice(0, 8).map((story) => (
-          <StoryItem key={story.userId} story={story} isFirst={false} userId={story.userId} />
-        ))}
-      </ScrollView>
-    </View>
-  );
-}
+
 interface PostCardProps {
   post: any;
   isVisible?: boolean; // Whether this post is currently visible on screen
@@ -482,7 +416,7 @@ export default function FeedScreen() {
           }}
           renderItem={({ item }: { item: any }) => {
             if (item.type === 'stories') {
-              return <StoriesSection />;
+              return <StoriesList />;
             }
             if (item.type === 'communities' || item.type === 'communities-bottom') {
               return <CommunitiesSection />;

@@ -134,12 +134,7 @@ export default function NotificationsScreen() {
     await handleMarkAllRead();
   };
   const filteredNotifications = useMemo(() => {
-    const all = data?.content || [];const filtered = all.filter(
-      (notification) =>
-        notification.notificationType === 'POST_COMMENT' ||
-        notification.notificationType === 'POST_REACTION' ||
-        notification.notificationType === 'COMMENT_REPLY'
-    );return filtered;
+    return data?.content || [];
   }, [data?.content]);
   const unreadCount = useMemo(() => {
     return filteredNotifications.filter((n) => !n.isRead).length;
