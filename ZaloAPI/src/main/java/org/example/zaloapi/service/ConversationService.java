@@ -43,6 +43,7 @@ public class ConversationService {
         conversation.setCreatedBy(creator);
         if (request.getType().equals("GROUP")) {
             conversation.setGroupName(request.getGroupName());
+            conversation.setGroupAvatarUrl(request.getGroupAvatarUrl());
         }
         conversation = conversationRepository.save(conversation);
         // Add creator as admin

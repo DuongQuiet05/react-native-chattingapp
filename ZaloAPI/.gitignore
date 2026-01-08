@@ -40,3 +40,6 @@ out/
 src/main/resources/firebase-service-account.json
 **/firebase-service-account*.json
 
+
+### Environment variables
+.env

@@ -22,13 +22,191 @@ function ConversationListItemComponent({ conversation, onPress }: Props) {
     !hasUnread &&
     conversation.type === "PRIVATE" &&
     conversation.participantStatus;
+
+  // Render avatar for group chats with multiple participants
+  const renderGroupAvatar = () => {
+    if (conversation.type !== "GROUP" || !conversation.participants) {
+      return null;
+    }
+
+    const participants = conversation.participants;
+    const count = participants.length;
+
+    if (count <= 1) {
+      // Single participant or empty - show fallback
+      return (
+        <View style={[styles.avatar, styles.avatarFallback]}>
+          <Text style={styles.avatarFallbackText}>{firstLetter}</Text>
+        </View>
+      );
+    }
+
+    if (count === 2) {
+      // 2 participants - show 2 avatars in 2x1 grid
+      return (
+        <View style={styles.groupAvatarContainer}>
+          <View style={styles.groupAvatarRow}>
+            {participants.slice(0, 2).map((p, idx) => (
+              <View key={p.id} style={styles.groupAvatarItemHalf}>
+                {p.avatarUrl ? (
+                  <Image
+                    source={{ uri: p.avatarUrl }}
+                    style={styles.groupAvatarImageHalf}
+                  />
+                ) : (
+                  <View
+                    style={[styles.groupAvatarImageHalf, styles.avatarFallback]}
+                  >
+                    <Text style={styles.groupAvatarFallbackText}>
+                      {p.displayName.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            ))}
+          </View>
+        </View>
+      );
+    }
+
+    if (count === 3) {
+      // 3 participants - show in 2x2 grid with bottom-right empty
+      return (
+        <View style={styles.groupAvatarContainer}>
+          <View style={styles.groupAvatarRow}>
+            {participants.slice(0, 2).map((p) => (
+              <View key={p.id} style={styles.groupAvatarItem}>
+                {p.avatarUrl ? (
+                  <Image
+                    source={{ uri: p.avatarUrl }}
+                    style={styles.groupAvatarImage}
+                  />
+                ) : (
+                  <View
+                    style={[styles.groupAvatarImage, styles.avatarFallback]}
+                  >
+                    <Text style={styles.groupAvatarFallbackText}>
+                      {p.displayName.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            ))}
+          </View>
+          <View style={styles.groupAvatarRow}>
+            {participants.slice(2, 3).map((p) => (
+              <View key={p.id} style={styles.groupAvatarItem}>
+                {p.avatarUrl ? (
+                  <Image
+                    source={{ uri: p.avatarUrl }}
+                    style={styles.groupAvatarImage}
+                  />
+                ) : (
+                  <View
+                    style={[styles.groupAvatarImage, styles.avatarFallback]}
+                  >
+                    <Text style={styles.groupAvatarFallbackText}>
+                      {p.displayName.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            ))}
+            <View style={styles.groupAvatarItem} />
+          </View>
+        </View>
+      );
+    }
+
+    // 4+ participants - show 2x2 grid, last one shows count if more than 4
+    const showCount = count > 4;
+    const displayParticipants = participants.slice(0, showCount ? 3 : 4);
+    const remainingCount = count - 3;
+
+    return (
+      <View style={styles.groupAvatarContainer}>
+        <View style={styles.groupAvatarRow}>
+          {displayParticipants.slice(0, 2).map((p) => (
+            <View key={p.id} style={styles.groupAvatarItem}>
+              {p.avatarUrl ? (
+                <Image
+                  source={{ uri: p.avatarUrl }}
+                  style={styles.groupAvatarImage}
+                />
+              ) : (
+                <View style={[styles.groupAvatarImage, styles.avatarFallback]}>
+                  <Text style={styles.groupAvatarFallbackText}>
+                    {p.displayName.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              )}
+            </View>
+          ))}
+        </View>
+        <View style={styles.groupAvatarRow}>
+          {displayParticipants.slice(2, showCount ? 3 : 4).map((p) => (
+            <View key={p.id} style={styles.groupAvatarItem}>
+              {p.avatarUrl ? (
+                <Image
+                  source={{ uri: p.avatarUrl }}
+                  style={styles.groupAvatarImage}
+                />
+              ) : (
+                <View style={[styles.groupAvatarImage, styles.avatarFallback]}>
+                  <Text style={styles.groupAvatarFallbackText}>
+                    {p.displayName.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              )}
+            </View>
+          ))}
+          {showCount ? (
+            <View style={styles.groupAvatarItem}>
+              <View style={[styles.groupAvatarImage, styles.groupAvatarCount]}>
+                <Text style={styles.groupAvatarCountText}>
+                  +{remainingCount}
+                </Text>
+              </View>
+            </View>
+          ) : (
+            displayParticipants.length === 4 && (
+              <View
+                key={displayParticipants[3].id}
+                style={styles.groupAvatarItem}
+              >
+                {displayParticipants[3].avatarUrl ? (
+                  <Image
+                    source={{ uri: displayParticipants[3].avatarUrl }}
+                    style={styles.groupAvatarImage}
+                  />
+                ) : (
+                  <View
+                    style={[styles.groupAvatarImage, styles.avatarFallback]}
+                  >
+                    <Text style={styles.groupAvatarFallbackText}>
+                      {displayParticipants[3].displayName
+                        .charAt(0)
+                        .toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )
+          )}
+        </View>
+      </View>
+    );
+  };
+
   return (
     <TouchableOpacity
       onPress={() => onPress(conversation.id)}
       activeOpacity={0.7}
     >
       <View style={styles.container}>
-        {conversation.avatarUrl ? (
+        {conversation.type === "GROUP" && !conversation.avatarUrl ? (
+          renderGroupAvatar()
+        ) : conversation.avatarUrl ? (
           <Image
             source={{ uri: String(conversation.avatarUrl) }}
             style={styles.avatar}
@@ -200,5 +378,49 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 11,
     fontWeight: "600",
+  },
+  groupAvatarContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  groupAvatarRow: {
+    flexDirection: "row",
+    flex: 1,
+  },
+  groupAvatarItem: {
+    flex: 1,
+    aspectRatio: 1,
+  },
+  groupAvatarItemHalf: {
+    flex: 1,
+    height: 56,
+  },
+  groupAvatarImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 100,
+  },
+  groupAvatarImageHalf: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 100,
+  },
+  groupAvatarFallbackText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#666",
+  },
+  groupAvatarCount: {
+    backgroundColor: "#2e8a8a",
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 100,
+  },
+  groupAvatarCountText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#fff",
   },
 });

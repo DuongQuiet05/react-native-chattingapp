@@ -10,4 +10,5 @@ public class CreateConversationRequest {
     private String groupName;
     @NotEmpty(message = "Participant IDs are required")
     private List<Long> participantIds;
+    private String groupAvatarUrl;
 }

@@ -6,7 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import dayjs from "dayjs";
 import "dayjs/locale/vi";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -23,6 +23,8 @@ dayjs.extend(relativeTime);
 dayjs.locale("vi");
 type FilterType = "Post" | "Account";
 export default function SearchScreen() {
+  const params = useLocalSearchParams();
+  const usersOnly = params.usersOnly === "true";
   const [query, setQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterType>("Account");
   const [loading, setLoading] = useState(false);
@@ -354,41 +356,52 @@ export default function SearchScreen() {
             </View>
           </View>
         </View>
+        {/* Title for users only mode */}
+        {usersOnly && (
+          <View style={styles.usersTitleContainer}>
+            <Text style={styles.usersTitle}>Tìm kiếm bạn bè</Text>
+            <Text style={styles.usersSubtitle}>
+              Nhập tên, username hoặc số điện thoại để tìm kiếm
+            </Text>
+          </View>
+        )}
         {/* Filter Buttons */}
-        <View style={styles.filterContainer}>
-          <TouchableOpacity
-            style={[
-              styles.filterButton,
-              activeFilter === "Post" && styles.activeFilterButton,
-            ]}
-            onPress={() => setActiveFilter("Post")}
-          >
-            <Text
+        {!usersOnly && (
+          <View style={styles.filterContainer}>
+            <TouchableOpacity
               style={[
-                styles.filterText,
-                activeFilter === "Post" && styles.activeFilterText,
+                styles.filterButton,
+                activeFilter === "Post" && styles.activeFilterButton,
               ]}
+              onPress={() => setActiveFilter("Post")}
             >
-              Bài viết
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.filterButton,
-              activeFilter === "Account" && styles.activeFilterButton,
-            ]}
-            onPress={() => setActiveFilter("Account")}
-          >
-            <Text
+              <Text
+                style={[
+                  styles.filterText,
+                  activeFilter === "Post" && styles.activeFilterText,
+                ]}
+              >
+                Bài viết
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
               style={[
-                styles.filterText,
-                activeFilter === "Account" && styles.activeFilterText,
+                styles.filterButton,
+                activeFilter === "Account" && styles.activeFilterButton,
               ]}
+              onPress={() => setActiveFilter("Account")}
             >
-              Tài khoản
-            </Text>
-          </TouchableOpacity>
-        </View>
+              <Text
+                style={[
+                  styles.filterText,
+                  activeFilter === "Account" && styles.activeFilterText,
+                ]}
+              >
+                Tài khoản
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
         {/* Results */}
         {renderResults()}
         {/* Send Friend Request Modal */}
@@ -658,5 +671,24 @@ const styles = StyleSheet.create({
   statText: {
     fontSize: 14,
     color: "#666",
+  },
+  usersTitleContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e8f4f4",
+  },
+  usersTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#2e8a8a",
+    marginBottom: 6,
+  },
+  usersSubtitle: {
+    fontSize: 13,
+    color: "#666",
+    lineHeight: 18,
   },
 });

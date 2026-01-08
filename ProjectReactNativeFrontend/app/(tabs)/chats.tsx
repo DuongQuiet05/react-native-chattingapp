@@ -46,6 +46,7 @@ export default function ChatsScreen() {
   const [friends, setFriends] = useState<FriendProfile[]>([]);
   const [loadingFriends, setLoadingFriends] = useState(false);
   const [createChatModalVisible, setCreateChatModalVisible] = useState(false);
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false);
 
   // Sort conversations: unread messages first, then by lastMessageAt (newest first)
   const sortedConversations = useMemo(() => {
@@ -223,7 +224,7 @@ export default function ChatsScreen() {
   }, [connected, queryClient, subscribe, user, conversations]);
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={[]}>
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
         <View style={styles.centered}>
           <ActivityIndicator />
         </View>
@@ -232,7 +233,7 @@ export default function ChatsScreen() {
   }
   if (isError) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={[]}>
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
         <ThemedView style={styles.centered}>
           <ThemedText style={styles.error}>
             Không thể tải danh sách cuộc trò chuyện
@@ -245,7 +246,7 @@ export default function ChatsScreen() {
     );
   }
   return (
-    <SafeAreaView style={styles.safeArea} edges={[]}>
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <ThemedView style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
@@ -314,7 +315,12 @@ export default function ChatsScreen() {
               {/* Add Friend Button */}
               <TouchableOpacity
                 style={styles.addFriendButton}
-                onPress={() => router.push("/(tabs)/search" as any)}
+                onPress={() =>
+                  router.push({
+                    pathname: "/(tabs)/search",
+                    params: { usersOnly: "true" },
+                  } as any)
+                }
                 activeOpacity={0.7}
               >
                 <Text style={styles.addFriendText}>+{"  "}Thêm bạn mới</Text>
@@ -339,8 +345,12 @@ export default function ChatsScreen() {
             )}
             refreshControl={
               <RefreshControl
-                refreshing={isFetching}
-                onRefresh={() => void refetch()}
+                refreshing={isManualRefreshing}
+                onRefresh={async () => {
+                  setIsManualRefreshing(true);
+                  await refetch();
+                  setIsManualRefreshing(false);
+                }}
               />
             }
             ListEmptyComponent={
