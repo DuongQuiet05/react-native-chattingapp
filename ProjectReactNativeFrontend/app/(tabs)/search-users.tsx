@@ -97,7 +97,7 @@ export default function SearchUsersScreen() {
     return null;
   };
   return (
-    <SafeAreaView style={styles.container} edges={[]}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ThemedView style={styles.content}>
         {/* Header */}
         <View style={styles.header}>

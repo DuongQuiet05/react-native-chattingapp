@@ -1,7 +1,12 @@
+import { Spacing } from "@/constants/theme";
 import { useContacts } from "@/hooks/api/use-contacts";
-import { useConversations, useCreateConversation } from "@/hooks/api/use-conversations";
+import {
+  useConversations,
+  useCreateConversation,
+} from "@/hooks/api/use-conversations";
 import { useFriendRequests } from "@/hooks/api/use-friend-requests";
 import { useFriendRequestsCount } from "@/hooks/api/use-friend-requests-count";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import type { FriendRequest } from "@/lib/api/friends";
 import type { Contact } from "@/lib/api/users";
 import { Ionicons } from "@expo/vector-icons";
@@ -37,6 +42,7 @@ export default function ContactsScreen() {
     isFetching: requestsFetching,
   } = useFriendRequests();
   const { data: friendRequestCount } = useFriendRequestsCount();
+  const colorScheme = useColorScheme();
   const [popoverVisible, setPopoverVisible] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [popoverPosition, setPopoverPosition] = useState({ x: 0, y: 0 });
@@ -47,34 +53,34 @@ export default function ContactsScreen() {
   const createConversation = useCreateConversation();
 
   const handleSendMessage = async () => {
-      if (!selectedContact) return;
+    if (!selectedContact) return;
 
-      setPopoverVisible(false);
-      
-      // 1. Check if conversation exists
-      const existingConversation = conversations?.find(
-          c => c.type === 'PRIVATE' && c.otherUserId === selectedContact.id
-      );
+    setPopoverVisible(false);
 
-      if (existingConversation) {
-          router.push(`/chat/${existingConversation.id}`);
-          return;
-      }
+    // 1. Check if conversation exists
+    const existingConversation = conversations?.find(
+      (c) => c.type === "PRIVATE" && c.otherUserId === selectedContact.id
+    );
 
-      // 2. If not, create new conversation
-      setIsCreatingChat(true); // You might want to show global loading here
-      try {
-          const newConv = await createConversation.mutateAsync({
-              type: 'PRIVATE',
-              participantIds: [selectedContact.id]
-          });
-          router.push(`/chat/${newConv.id}`);
-      } catch (error) {
-          console.error("Failed to create conversation", error);
-          // Optional: Show alert
-      } finally {
-          setIsCreatingChat(false);
-      }
+    if (existingConversation) {
+      router.push(`/chat/${existingConversation.id}`);
+      return;
+    }
+
+    // 2. If not, create new conversation
+    setIsCreatingChat(true); // You might want to show global loading here
+    try {
+      const newConv = await createConversation.mutateAsync({
+        type: "PRIVATE",
+        participantIds: [selectedContact.id],
+      });
+      router.push(`/chat/${newConv.id}`);
+    } catch (error) {
+      console.error("Failed to create conversation", error);
+      // Optional: Show alert
+    } finally {
+      setIsCreatingChat(false);
+    }
   };
 
   const sections = useMemo(() => {
@@ -212,7 +218,9 @@ export default function ContactsScreen() {
     },
     [renderFriendRequestItem, renderFriendItem]
   );
-  const isLoading = contactsLoading || requestsLoading;
+  // Only show loading on initial fetch when there's no data yet
+  const isLoading =
+    (contactsLoading && !contacts) || (requestsLoading && !friendRequests);
   const isError = contactsError && requestsError;
   const isFetching = contactsFetching || requestsFetching;
   if (isLoading) {
@@ -237,11 +245,19 @@ export default function ContactsScreen() {
     );
   }
   return (
-    <SafeAreaView style={styles.safeArea} edges={[]}>
-      <View style={styles.container}>
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: "#fff" }]}
+      edges={["top"]}
+    >
+      <View style={[styles.container, { backgroundColor: "#fff" }]}>
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Danh bạ</Text>
+        <View
+          style={[
+            styles.header,
+            { backgroundColor: "#fff", borderBottomColor: "#f0f0f0" },
+          ]}
+        >
+          <Text style={styles.headerTitle}>Contacts</Text>
           <View style={styles.headerButtons}>
             <TouchableOpacity
               style={styles.iconButton}
@@ -357,22 +373,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 14,
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.md,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#f0f0f0",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
     elevation: 2,
   },
   headerTitle: {
-    fontSize: 20,
+    alignSelf: "flex-start",
+    paddingHorizontal: 24,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(46, 138, 138, 0.06)", // #2e8a8a nhạt
+    color: "#2e8a8a",
+    fontSize: 22,
     fontWeight: "600",
-    color: "#000",
+    letterSpacing: 0.5,
   },
   headerButtons: {
     flexDirection: "row",
@@ -423,9 +440,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 12,
+    paddingVertical: 16,
     marginTop: 16,
-    marginBottom: 8,
   },
   sectionTitle: {
     fontSize: 14,
@@ -433,6 +449,10 @@ const styles = StyleSheet.create({
     color: "#000",
     textTransform: "uppercase",
     letterSpacing: 0.5,
+    borderLeftWidth: 3,
+    borderLeftColor: "#2e8a8a",
+    paddingLeft: 12,
+    paddingVertical: 10,
   },
   seeAllButton: {
     paddingHorizontal: 14,

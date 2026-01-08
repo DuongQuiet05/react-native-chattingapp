@@ -2,12 +2,12 @@ import { ConversationListItem } from "@/components/conversation-list-item";
 import { CreateChatModal } from "@/components/create-chat-modal";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { Colors, Spacing } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import {
   conversationQueryKeys,
   useConversations,
 } from "@/hooks/api/use-conversations";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import type { ConversationSummary } from "@/lib/api/conversations";
 import { getFriendsList, type FriendProfile } from "@/lib/api/friends";
 import { queryKeys } from "@/lib/api/query-keys";
@@ -35,7 +35,7 @@ export default function ChatsScreen() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { connected, subscribe } = useStomp();
-  const colorScheme = useColorScheme();
+  const colorScheme = "light";
   const {
     data: conversations,
     isLoading,
@@ -246,8 +246,16 @@ export default function ChatsScreen() {
     );
   }
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <ThemedView style={styles.container}>
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: Colors["light"].background }]}
+      edges={["top"]}
+    >
+      <ThemedView
+        style={[
+          styles.container,
+          { backgroundColor: Colors["light"].background },
+        ]}
+      >
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
@@ -386,26 +394,21 @@ export default function ChatsScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "white",
   },
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "white",
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 14,
-    backgroundColor: "#fff",
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.md,
+    backgroundColor: "white",
     borderBottomWidth: 1,
     borderBottomColor: "#f0f0f0",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
     elevation: 2,
   },
   headerLeft: {
@@ -456,8 +459,12 @@ const styles = StyleSheet.create({
   },
   sectionHeader: {
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingVertical: 16,
     backgroundColor: "#fff",
+
+    borderLeftWidth: 4,
+    borderLeftColor: "#2e8a8a",
+    marginLeft: 2,
   },
   sectionTitle: {
     fontSize: 20,

@@ -73,7 +73,7 @@ export default function PrivacySettingsScreen() {
     );
   }
   return (
-    <SafeAreaView style={styles.safeArea} edges={[]}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ThemedView style={styles.container}>
         {/* Header */}
         <View style={styles.header}>

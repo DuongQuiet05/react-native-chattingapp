@@ -67,7 +67,7 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <ThemeProvider value={theme}>
-        <SafeAreaView style={{ flex: 1 }}>
+        <View style={{ flex: 1 }}>
           <ReactQueryProvider>
             <AuthProvider>
               <StompProvider>
@@ -83,7 +83,7 @@ export default function RootLayout() {
               </StompProvider>
             </AuthProvider>
           </ReactQueryProvider>
-        </SafeAreaView>
+        </View>
       </ThemeProvider>
     </ErrorBoundary>
   );

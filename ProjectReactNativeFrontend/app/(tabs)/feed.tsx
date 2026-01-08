@@ -9,7 +9,6 @@ import {
   useReactToPost,
   useRemovePostReaction,
 } from "@/hooks/api/use-posts";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import dayjs from "dayjs";
@@ -28,6 +27,7 @@ import {
   View,
   ViewToken,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 dayjs.extend(relativeTime);
 const { width } = Dimensions.get("window");
 const REACTION_TYPES = ["LIKE", "LOVE", "HAHA", "WOW", "SAD", "ANGRY"] as const;
@@ -76,8 +76,8 @@ interface PostCardProps {
   isVisible?: boolean; // Whether this post is currently visible on screen
 }
 function PostCard({ post, isVisible = false }: PostCardProps) {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const colorScheme = "light";
+  const colors = Colors["light"];
   const { user } = useAuth();
   const reactToPost = useReactToPost();
   const removeReaction = useRemovePostReaction();
@@ -304,8 +304,8 @@ function PostCard({ post, isVisible = false }: PostCardProps) {
   );
 }
 function CommunitiesSection() {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const colorScheme = "light";
+  const colors = Colors["light"];
   const formatMembers = (count: number) => {
     if (count >= 1000) {
       return `+${(count / 1000).toFixed(1)}K`;
@@ -369,8 +369,8 @@ function CommunitiesSection() {
   );
 }
 export default function FeedScreen() {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const colorScheme = "light";
+  const colors = Colors["light"];
   const [activeTab, setActiveTab] = useState<
     "For You" | "Following" | "My Community"
   >("For You");
@@ -413,11 +413,11 @@ export default function FeedScreen() {
     }, [])
   );
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: "#fff" }]}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>COMMUIN</Text>
+          <Text style={styles.headerTitle}>Feeds</Text>
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity
@@ -568,7 +568,7 @@ export default function FeedScreen() {
           </TouchableOpacity>
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 const styles = StyleSheet.create({
@@ -580,9 +580,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: Spacing.md,
-    paddingTop: 50,
     paddingBottom: Spacing.md,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "white",
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
   },
   headerLeft: {
     flex: 1,
@@ -593,9 +594,14 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#000000",
+    alignSelf: "flex-start",
+    paddingHorizontal: 24,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(46, 138, 138, 0.06)", // #2e8a8a nhạt
+    color: "#2e8a8a",
+    fontSize: 22,
+    fontWeight: "600",
     letterSpacing: 0.5,
   },
   notificationButton: {
@@ -626,22 +632,22 @@ const styles = StyleSheet.create({
   },
   tabsContainer: {
     flexDirection: "row",
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
     backgroundColor: "#FFFFFF",
-    gap: Spacing.sm,
+    gap: Spacing.xs,
   },
   tab: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
   },
   activeTab: {
-    backgroundColor: "#000000",
-    borderRadius: 20,
+    backgroundColor: "#0f3d3d",
+    borderRadius: 16,
   },
   tabText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "500",
     color: "#999999",
   },

@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { SafeAreaView } from 'react-native-safe-area-context';
 const { width } = Dimensions.get('window');
 // Mock data
 const stories = [
@@ -75,16 +76,16 @@ const communities = [
   },
 ];
 export default function ExploreScreen() {
-  const colorScheme = useColorScheme();
+  const colorScheme = "light";
   const [activeTab, setActiveTab] = useState('For You');
-  const isDark = colorScheme === 'dark';
+  const isDark = false;
   return (
-    <View style={[styles.container, { backgroundColor: isDark ? '#000' : '#fff' }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: '#fff' }]} edges={["top"]}>
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: isDark ? '#2C2C2E' : '#E5E5EA' }]}>
-        <Text style={[styles.headerTitle, { color: isDark ? '#fff' : '#000' }]}>COMMUIN</Text>
+      <View style={[styles.header, { borderBottomColor: '#E5E5EA' }]}>
+        <Text style={[styles.headerTitle, { color: '#000' }]}>COMMUIN</Text>
         <View style={styles.notificationBadge}>
-          <IconSymbol name="bell.fill" size={20} color={isDark ? '#fff' : '#000'} />
+          <IconSymbol name="bell.fill" size={20} color={'#000'} />
           <View style={styles.badge}>
             <Text style={styles.badgeText}>6</Text>
           </View>
@@ -214,7 +215,7 @@ export default function ExploreScreen() {
           </ScrollView>
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 function formatNumber(num: number): string {
@@ -232,8 +233,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 50,
-    paddingBottom: 12,
+    paddingVertical: 12,
     borderBottomWidth: 1,
   },
   headerTitle: {

@@ -280,7 +280,7 @@ function CreatePostScreenContent() {
     isPending: false,
   };
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: '#E8F4FD' }]} edges={[]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: '#E8F4FD' }]} edges={['top']}>
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

@@ -3,7 +3,6 @@ import { useAuth } from "@/contexts/auth-context";
 import { useContacts } from "@/hooks/api/use-contacts";
 import { useUserPosts } from "@/hooks/api/use-posts";
 import { useUpdateProfile, useUserProfile } from "@/hooks/api/use-profile";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { uploadImage } from "@/lib/api/upload-service";
 import { Ionicons } from "@expo/vector-icons";
 import dayjs from "dayjs";
@@ -34,14 +33,14 @@ dayjs.extend(relativeTime);
 const { width } = Dimensions.get("window");
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const colorScheme = "light";
+  const colors = Colors["light"];
   const { data: profile, isLoading, refetch } = useUserProfile();
   const { data: postsData } = useUserPosts(user?.id || 0);
   const { data: friends } = useContacts();
   const updateProfile = useUpdateProfile();
   const [activeTab, setActiveTab] = useState<"Activity" | "Post" | "Tagged">(
-    "Activity"
+    "Post"
   );
   const [showEditModal, setShowEditModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -241,18 +240,22 @@ export default function ProfileScreen() {
   });
   const postCount = posts.length; // Use filtered count
   return (
-    <SafeAreaView style={styles.container} edges={[]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: "#fff" }]}
+      edges={["top"]}
+    >
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Hồ sơ</Text>
+      <View style={[styles.header, { backgroundColor: "#fff" }]}>
+        <Text style={styles.headerTitle}>Profile</Text>
         <TouchableOpacity
-          style={styles.headerButton}
+          style={[styles.headerButton, { backgroundColor: "#F6F6F6" }]}
           onPress={() => setShowSettingsModal(true)}
         >
-          <Ionicons name="ellipsis-vertical" size={20} color="#000000" />
+          <Ionicons name="ellipsis-vertical" size={20} color="#000" />
         </TouchableOpacity>
       </View>
       <ScrollView
+        style={styles.contentContainer}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={false} onRefresh={refetch} />
@@ -336,71 +339,99 @@ export default function ProfileScreen() {
           {/* Editable Profile Fields */}
           <View style={styles.editableFieldsSection}>
             {/* Bio */}
-            <TouchableOpacity
-              style={styles.editableField}
-              onPress={() => openFieldEdit("bio")}
-            >
+            <View style={styles.editableField}>
               <View style={styles.fieldContent}>
-                <Text style={styles.fieldLabel}>Giới thiệu</Text>
+                <TouchableOpacity
+                  style={styles.fieldHeaderRow}
+                  onPress={() => openFieldEdit("bio")}
+                  activeOpacity={0.6}
+                >
+                  <Text style={styles.fieldLabel}>Giới thiệu</Text>
+                  <Ionicons
+                    name="pencil-outline"
+                    size={14}
+                    color="#999999"
+                    style={styles.editIcon}
+                  />
+                </TouchableOpacity>
                 <Text style={styles.fieldValue} numberOfLines={2}>
                   {profile?.bio || "Chưa có giới thiệu"}
                 </Text>
               </View>
-              <Ionicons name="pencil" size={18} color="#666666" />
-            </TouchableOpacity>
+            </View>
 
             {/* Phone Number */}
             {profile?.phoneNumber && (
               <View style={styles.editableField}>
                 <View style={styles.fieldContent}>
-                  <Text style={styles.fieldLabel}>Số điện thoại</Text>
+                  <View style={styles.fieldHeaderRow}>
+                    <Text style={styles.fieldLabel}>Số điện thoại</Text>
+                    {profile.isPhoneVerified && (
+                      <View style={styles.verifiedBadge}>
+                        <Text style={styles.verifiedText}>Đã xác thực</Text>
+                      </View>
+                    )}
+                  </View>
                   <Text style={styles.fieldValue}>
                     {formatPhoneNumber(profile.phoneNumber)}
                   </Text>
                 </View>
-                {profile.isPhoneVerified && (
-                  <View style={styles.verifiedBadge}>
-                    <Text style={styles.verifiedText}>Đã xác thực</Text>
-                  </View>
-                )}
               </View>
             )}
 
             {/* Date of Birth */}
-            <TouchableOpacity
-              style={styles.editableField}
-              onPress={() => openFieldEdit("dateOfBirth")}
-            >
+            <View style={styles.editableField}>
               <View style={styles.fieldContent}>
-                <Text style={styles.fieldLabel}>Ngày sinh</Text>
+                <TouchableOpacity
+                  style={styles.fieldHeaderRow}
+                  onPress={() => openFieldEdit("dateOfBirth")}
+                  activeOpacity={0.6}
+                >
+                  <Text style={styles.fieldLabel}>Ngày sinh</Text>
+                  <Ionicons
+                    name="pencil-outline"
+                    size={14}
+                    color="#999999"
+                    style={styles.editIcon}
+                  />
+                </TouchableOpacity>
                 <Text style={styles.fieldValue}>
                   {profile?.dateOfBirth
                     ? dayjs(profile.dateOfBirth).format("DD/MM/YYYY")
                     : "Chưa cập nhật"}
                 </Text>
               </View>
-              <Ionicons name="pencil" size={18} color="#666666" />
-            </TouchableOpacity>
+            </View>
 
             {/* Gender */}
-            <TouchableOpacity
-              style={styles.editableField}
-              onPress={() => openFieldEdit("gender")}
-            >
+            <View style={styles.editableField}>
               <View style={styles.fieldContent}>
-                <Text style={styles.fieldLabel}>Giới tính</Text>
+                <TouchableOpacity
+                  style={styles.fieldHeaderRow}
+                  onPress={() => openFieldEdit("gender")}
+                  activeOpacity={0.6}
+                >
+                  <Text style={styles.fieldLabel}>Giới tính</Text>
+                  <Ionicons
+                    name="pencil-outline"
+                    size={14}
+                    color="#999999"
+                    style={styles.editIcon}
+                  />
+                </TouchableOpacity>
                 <Text style={styles.fieldValue}>
                   {profile?.gender || "Chưa cập nhật"}
                 </Text>
               </View>
-              <Ionicons name="pencil" size={18} color="#666666" />
-            </TouchableOpacity>
+            </View>
 
             {/* Account Created Date */}
             {profile?.createdAt && (
               <View style={styles.editableField}>
                 <View style={styles.fieldContent}>
-                  <Text style={styles.fieldLabel}>Tham gia</Text>
+                  <View style={styles.fieldHeaderRow}>
+                    <Text style={styles.fieldLabel}>Tham gia</Text>
+                  </View>
                   <Text style={styles.fieldValue}>
                     {dayjs(profile.createdAt).format("DD/MM/YYYY")}
                   </Text>
@@ -419,7 +450,7 @@ export default function ProfileScreen() {
         </View>
         {/* Tabs */}
         <View style={styles.tabsContainer}>
-          {(["Activity", "Post", "Tagged"] as const).map((tab) => {
+          {(["Post", "Activity", "Tagged"] as const).map((tab) => {
             const tabLabels: Record<string, string> = {
               Activity: "Hoạt động",
               Post: "Bài viết",
@@ -769,7 +800,11 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F6F6F6",
+    backgroundColor: "white",
+  },
+  contentContainer: {
+    flex: 1,
+    backgroundColor: "white",
   },
   center: {
     justifyContent: "center",
@@ -780,8 +815,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
+    paddingBottom: Spacing.md,
     backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
   },
   headerButton: {
     width: 40,
@@ -792,10 +829,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#000000",
-    flex: 1,
+    alignSelf: "flex-start",
+    paddingHorizontal: 24,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(46, 138, 138, 0.06)", // #2e8a8a nhạt
+    color: "#2e8a8a",
+    fontSize: 22,
+    fontWeight: "600",
+    letterSpacing: 0.5,
   },
   profileCard: {
     backgroundColor: "#FFFFFF",
@@ -890,46 +932,62 @@ const styles = StyleSheet.create({
   },
   editableFieldsSection: {
     marginTop: 0,
-    gap: Spacing.xs,
   },
   editableField: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.sm,
-    backgroundColor: "#F9F9F9",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#F0F0F0",
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: 0,
   },
   fieldContent: {
     flex: 1,
-    gap: 3,
+    gap: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: "#2e8a8a",
+    paddingLeft: Spacing.sm,
+  },
+  fieldHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 6,
+  },
+  editIconButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(46, 138, 138, 0.12)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   fieldLabel: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: "600",
     color: "#999999",
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
+  editIcon: {
+    marginLeft: 6,
+  },
   fieldValue: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "500",
     color: "#000000",
+    marginLeft: Spacing.sm + 3,
   },
   tabsContainer: {
     flexDirection: "row",
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs + 4,
+    paddingVertical: Spacing.md,
     gap: 6,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#eeeeee67",
     marginBottom: Spacing.sm,
   },
   tab: {
     flex: 1,
-    paddingVertical: 7,
+    paddingVertical: 10,
     paddingHorizontal: 10,
     borderRadius: 20,
     alignItems: "center",
@@ -1165,6 +1223,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 10,
+    marginLeft: 10,
   },
   verifiedText: {
     fontSize: 10,

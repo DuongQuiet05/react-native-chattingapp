@@ -32,8 +32,8 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 dayjs.extend(relativeTime);
 const { width } = Dimensions.get('window');
 function PostCard({ post }: { post: any }) {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
+  const colorScheme = "light";
+  const colors = Colors["light"];
   const formatNumber = (num: number) => {
     if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
     return num.toString();
@@ -95,8 +95,8 @@ function PostCard({ post }: { post: any }) {
 export default function UserProfileScreen() {
   const { userId } = useLocalSearchParams<{ userId: string }>();
   const { user: currentUser } = useAuth();
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
+  const colorScheme = "light";
+  const colors = Colors["light"];
   const queryClient = useQueryClient();
   const userIdNum = parseInt(userId || '0', 10);
   const isOwnProfile = currentUser?.id === userIdNum;
@@ -348,13 +348,13 @@ export default function UserProfileScreen() {
   const followersCount = 0; // TODO: Get from API
   const followingCount = 0; // TODO: Get from API
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: '#F5F5F5' }]} edges={[]}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: "#fff" }]} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: "#fff" }]}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#000" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{profile.username}</Text>
+        <Text style={[styles.headerTitle, { color: "#000" }]}>{profile.username}</Text>
         {!isOwnProfile && (
           <TouchableOpacity onPress={() => setMenuVisible(true)}>
             <Ionicons name="ellipsis-vertical" size={24} color="#000" />
@@ -363,7 +363,7 @@ export default function UserProfileScreen() {
         {isOwnProfile && <View style={{ width: 24 }} />}
       </View>
       <ScrollView
-        style={styles.container}
+        style={[styles.container, { backgroundColor: "#F5F5F5" }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} />}>
         {/* Profile Card */}
